@@ -156,10 +156,14 @@ func pullPush(repos []repo.Repository) {
 			go func() {
 				defer wg.Done()
 				err := r.PullRebase()
-
 				if err != nil {
 					// TODO: Error Handling
 				}
+				err = r.Push()
+				if err != nil {
+					// TODO: Error Handling
+				}
+
 				renderPullPushTable(w, repos)
 			}()
 		}
