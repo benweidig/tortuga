@@ -48,7 +48,7 @@ func FetchAll(repoPath string) (bytes.Buffer, error) {
 
 // Shows the working tree status
 func Status(repoPath string) (bytes.Buffer, bytes.Buffer, error) {
-	return run(repoPath, "status", "--short")
+	return run(repoPath, "status", "--porcelain")
 }
 
 // Returns the count of incomming changes between the local head and upstream
