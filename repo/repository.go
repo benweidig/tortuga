@@ -126,6 +126,10 @@ func (r Repository) Unstash() error {
 }
 
 func (r Repository) Pull() error {
+	if r.Incoming == 0 {
+		return nil
+	}
+
 	_, err := git.Pull(r.path)
 	if err != nil {
 		fmt.Printf("Couldn't pull %s [%s]: %s", r.Name, r.Branch, err)
@@ -136,6 +140,10 @@ func (r Repository) Pull() error {
 }
 
 func (r Repository) PullRebase() error {
+	if r.Incoming == 0 {
+		return nil
+	}
+
 	_, err := git.PullRebase(r.path)
 
 	if err != nil {
@@ -147,6 +155,10 @@ func (r Repository) PullRebase() error {
 }
 
 func (r Repository) Push() error {
+	if r.Outgoing == 0 {
+		return nil
+	}
+
 	_, err := git.Push(r.path)
 	return err
 }
