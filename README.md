@@ -4,9 +4,11 @@ CLI tool for fetching/pushing/rebasing multiple git repositories at once.
 
 ## Work in Progress
 
-THIS TOOL IS A WORK IN PROGRESS! TREAD WITH CARE!
+THIS TOOL IS A WORK IN PROGRESS!
+NOT BATTLE-TESTED AT ALL!
+TREAD WITH CARE!
 
-Releases will be added shortly.
+As soon as I got a _"works reliably on my machine"_-version I will add releases.
 
 
 ## Usage
