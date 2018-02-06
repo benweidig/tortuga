@@ -59,7 +59,7 @@ func Incoming(repoPath string, branch string) (int, bytes.Buffer, error) {
 
 // Returns the count of outgoing changes between the local head and upstrea
 func Outgoing(repoPath string, branch string) (int, bytes.Buffer, error) {
-	rangeSpecifier := fmt.Sprintf("%s@{upstream}..HEAD", branch)
+	rangeSpecifier := fmt.Sprintf("%s@{push}..HEAD", branch)
 	return commitDiff(repoPath, rangeSpecifier)
 }
 
