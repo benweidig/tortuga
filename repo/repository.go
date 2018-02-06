@@ -11,13 +11,12 @@ import (
 type Repository struct {
 	path string
 
-	Name       string
-	RemoteUrls RemoteUrls
-	Branch     string
-	Changes    Changes
-	Incoming   int
-	Outgoing   int
-	State      State
+	Name     string
+	Branch   string
+	Changes  Changes
+	Incoming int
+	Outgoing int
+	State    State
 }
 
 func NewRepository(repoPath string) (Repository, error) {
@@ -35,18 +34,6 @@ func NewRepository(repoPath string) (Repository, error) {
 
 	r.Branch = branch
 
-	remoteUrlsBuffer, stdErr, err := git.RemoteVerbose(r.path)
-	if err != nil {
-		fmt.Println(err)
-		log.Fatal(stdErr.String())
-	}
-	remoteUrls, err := NewRemoteUrls(remoteUrlsBuffer)
-	if err != nil {
-		fmt.Println(err)
-		log.Fatal(stdErr.String())
-	}
-	r.RemoteUrls = remoteUrls
-
 	return r, nil
 }
 
@@ -55,12 +42,14 @@ func (r *Repository) Update(localOnly bool) error {
 	if localOnly == false {
 		_, err := git.FetchAll(r.path)
 		if err != nil {
+			r.State = StateError
 			return err
 		}
 	}
 
 	status, _, err := git.Status(r.path)
 	if err != nil {
+		r.State = StateError
 		return err
 	}
 
@@ -68,12 +57,14 @@ func (r *Repository) Update(localOnly bool) error {
 
 	incoming, _, err := git.Incoming(r.path, r.Branch)
 	if err != nil {
+		r.State = StateError
 		return err
 	}
 	r.Incoming = incoming
 
 	outgoing, _, err := git.Outgoing(r.path, r.Branch)
 	if err != nil {
+		r.State = StateError
 		return err
 	}
 	r.Outgoing = outgoing
@@ -87,6 +78,7 @@ func (r *Repository) Sync() error {
 	if r.Changes.Stashable > 0 {
 		_, err := git.Stash(r.path)
 		if err != nil {
+			r.State = StateError
 			return err
 		}
 	}
@@ -94,6 +86,7 @@ func (r *Repository) Sync() error {
 	if r.Incoming > 0 {
 		_, err := git.PullRebase(r.path)
 		if err != nil {
+			r.State = StateError
 			return err
 		}
 	}
@@ -101,6 +94,7 @@ func (r *Repository) Sync() error {
 	if r.Changes.Stashable > 0 {
 		_, err := git.PopStash(r.path)
 		if err != nil {
+			r.State = StateError
 			return err
 		}
 	}
@@ -108,6 +102,7 @@ func (r *Repository) Sync() error {
 	if r.Outgoing > 0 {
 		_, err := git.Push(r.path)
 		if err != nil {
+			r.State = StateError
 			return err
 		}
 	}

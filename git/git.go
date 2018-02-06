@@ -16,7 +16,9 @@ func run(repoPath string, args ...string) (bytes.Buffer, bytes.Buffer, error) {
 	os.Setenv("GIT_TERMINAL_PROMPT", "0")
 
 	// Combine args and build command
-	args = append([]string{"-C", repoPath}, args...)
+	if len(repoPath) > 0 {
+		args = append([]string{"-C", repoPath}, args...)
+	}
 	cmd := exec.Command("git", args...)
 
 	// Attach buffers, a function might need both so just grab both
@@ -29,11 +31,6 @@ func run(repoPath string, args ...string) (bytes.Buffer, bytes.Buffer, error) {
 	err := cmd.Run()
 
 	return outBuffer, errBuffer, err
-}
-
-// Returns the remote
-func RemoteVerbose(repoPath string) (bytes.Buffer, bytes.Buffer, error) {
-	return run(repoPath, "remote", "--verbose")
 }
 
 // Returns the current branch of the repository
@@ -99,12 +96,6 @@ func Stash(repoPath string) (bytes.Buffer, error) {
 // Remove top-most stashed state from the stash list and apply it on top of the current working tree state
 func PopStash(repoPath string) (bytes.Buffer, error) {
 	_, stdErr, err := run(repoPath, "stash", "pop")
-	return stdErr, err
-}
-
-// Fetch from and integrate changes to the current working tree state by merge (default pull)
-func Pull(repoPath string) (bytes.Buffer, error) {
-	_, stdErr, err := run(repoPath, "pull")
 	return stdErr, err
 }
 

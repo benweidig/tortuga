@@ -6,7 +6,5 @@ const (
 	StateNone State = iota
 	StateUpdated
 	StateSynced
-
-	StateAuthError
 	StateError
 )

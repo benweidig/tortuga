@@ -55,6 +55,18 @@ func runCommand(_ *cobra.Command, args []string) {
 		os.Exit(0)
 	}
 
+	atLeastOneDirty := false
+	for _, r := range repos {
+		if r.Incoming > 0 || r.Outgoing > 0 {
+			atLeastOneDirty = true
+			break
+		}
+	}
+
+	if atLeastOneDirty == false {
+		fmt.Println("No work can be done, exiting...")
+		os.Exit(0)
+	}
 	answer, err := askYN("Stash/Pull/Rebase/Push?")
 	if err != nil {
 		log.Fatal(err)
@@ -119,6 +131,10 @@ func syncRepositories(repos []repo.Repository) {
 
 	for idx := range repos {
 		r := &repos[idx]
+
+		if r.State == repo.StateError {
+			continue
+		}
 
 		// The refs are different, so we need to do some work.
 		if r.Incoming > 0 || r.Outgoing > 0 {
@@ -227,7 +243,8 @@ func renderRepoTable(w *uilive.Writer, repos []repo.Repository) {
 
 	for _, r := range repos {
 		var status string
-		if r.State == repo.StateUpdated {
+		switch r.State {
+		case repo.StateUpdated:
 			var statusParts []string
 			if r.Changes.Total == 0 {
 				statusParts = append(statusParts, color.GreenString("%d*", r.Changes.Total))
@@ -242,7 +259,9 @@ func renderRepoTable(w *uilive.Writer, repos []repo.Repository) {
 				statusParts = append(statusParts, color.YellowString("%d↑", r.Outgoing))
 			}
 			status = strings.Join(statusParts, " ")
-		} else {
+		case repo.StateError:
+			status = color.RedString("Error")
+		default:
 			status = "..."
 		}
 		table.AddRow(color.WhiteString(r.Name), color.WhiteString(r.Branch), status)
@@ -259,7 +278,8 @@ func renderSyncTable(w *uilive.Writer, repos []repo.Repository) {
 
 	for _, r := range repos {
 		var status string
-		if r.State == repo.StateSynced {
+		switch r.State {
+		case repo.StateSynced:
 			if r.Outgoing == 0 && r.Incoming == 0 {
 				status = "Nothing to do"
 			} else {
@@ -273,7 +293,10 @@ func renderSyncTable(w *uilive.Writer, repos []repo.Repository) {
 				status = strings.Join(statusParts, ", ")
 			}
 			status = color.GreenString(status)
-		} else {
+
+		case repo.StateError:
+			status = color.RedString("Error")
+		default:
 			status = "..."
 		}
 		table.AddRow(color.New(color.FgWhite).Sprint(r.Name), color.New(color.FgWhite).Sprint(r.Branch), color.New(color.FgWhite).Sprint(status))
