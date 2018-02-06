@@ -17,14 +17,14 @@ type Repository struct {
 	Changes    Changes
 	Incoming   int
 	Outgoing   int
-	Checked    bool
+	State      State
 }
 
 func NewRepository(repoPath string) (Repository, error) {
 	r := Repository{
-		Name:    path.Base(repoPath),
-		path:    repoPath,
-		Checked: false,
+		Name:  path.Base(repoPath),
+		path:  repoPath,
+		State: StateNone,
 	}
 
 	branch, stdErr, err := git.CurrentBranch(r.path)
@@ -78,7 +78,7 @@ func (r *Repository) Update(localOnly bool) error {
 	}
 	r.Outgoing = outgoing
 
-	r.Checked = true
+	r.State = StateUpdated
 
 	return nil
 }
@@ -113,6 +113,8 @@ func (r Repository) Sync() error {
 			return err
 		}
 	}
+
+	r.State = StateSynced
 
 	return nil
 }

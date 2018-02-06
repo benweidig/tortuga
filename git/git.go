@@ -5,12 +5,16 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
 
 // Runs a git command with the specified args against a path
 func run(repoPath string, args ...string) (bytes.Buffer, bytes.Buffer, error) {
+	// Disable terminal prompting so it fails if credentials are needed
+	os.Setenv("GIT_TERMINAL_PROMPT", "0")
+
 	// Combine args and build command
 	args = append([]string{"-C", repoPath}, args...)
 	cmd := exec.Command("git", args...)

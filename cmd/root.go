@@ -36,7 +36,7 @@ func init() {
 	RootCmd.Flags().BoolVarP(&localOnlyArg, "local-only", "l", false, "Local mode, don't fetch remotes")
 }
 
-func runCommand(cmd *cobra.Command, args []string) {
+func runCommand(_ *cobra.Command, args []string) {
 	var basePath string
 
 	if len(args) == 1 {
@@ -123,7 +123,6 @@ func pullPush(repos []repo.Repository) {
 
 		// The refs are different, so we need to do some work.
 		if r.Incoming > 0 || r.Outgoing > 0 {
-			r.Checked = false
 			// We separate the repos to 2 categories: safe and unsafe.
 			//
 			// Possible states for a repository to be considered safe:
@@ -177,7 +176,7 @@ func pullPush(repos []repo.Repository) {
 		}
 		log.Fatal(err)
 
-		r.Checked = true
+		r.State = repo.StateSynced
 		renderPullPushTable(w, repos)
 	}
 
@@ -227,7 +226,7 @@ func renderRepoTable(w *uilive.Writer, repos []repo.Repository) {
 
 	for _, r := range repos {
 		var status string
-		if r.Checked {
+		if r.State == repo.StateUpdated {
 			var statusParts []string
 			if r.Changes.Total == 0 {
 				statusParts = append(statusParts, color.GreenString("%d*", r.Changes.Total))
@@ -259,7 +258,7 @@ func renderPullPushTable(w *uilive.Writer, repos []repo.Repository) {
 
 	for _, r := range repos {
 		var status string
-		if r.Checked {
+		if r.State == repo.StateSynced {
 			if r.Outgoing == 0 && r.Incoming == 0 {
 				status = "Nothing to do"
 			} else {
