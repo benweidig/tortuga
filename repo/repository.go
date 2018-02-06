@@ -11,12 +11,13 @@ import (
 type Repository struct {
 	path string
 
-	Name     string
-	Branch   string
-	Changes  Changes
-	Incoming int
-	Outgoing int
-	Checked  bool
+	Name       string
+	RemoteUrls RemoteUrls
+	Branch     string
+	Changes    Changes
+	Incoming   int
+	Outgoing   int
+	Checked    bool
 }
 
 func NewRepository(repoPath string) (Repository, error) {
@@ -30,10 +31,21 @@ func NewRepository(repoPath string) (Repository, error) {
 	if err != nil {
 		fmt.Println(err)
 		log.Fatal(stdErr.String())
-		return r, err
 	}
 
 	r.Branch = branch
+
+	remoteUrlsBuffer, stdErr, err := git.RemoteVerbose(r.path)
+	if err != nil {
+		fmt.Println(err)
+		log.Fatal(stdErr.String())
+	}
+	remoteUrls, err := NewRemoteUrls(remoteUrlsBuffer)
+	if err != nil {
+		fmt.Println(err)
+		log.Fatal(stdErr.String())
+	}
+	r.RemoteUrls = remoteUrls
 
 	return r, nil
 }

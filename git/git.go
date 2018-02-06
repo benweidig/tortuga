@@ -27,6 +27,11 @@ func run(repoPath string, args ...string) (bytes.Buffer, bytes.Buffer, error) {
 	return outBuffer, errBuffer, err
 }
 
+// Returns the remote
+func RemoteVerbose(repoPath string) (bytes.Buffer, bytes.Buffer, error) {
+	return run(repoPath, "remote", "--verbose")
+}
+
 // Returns the current branch of the repository
 func CurrentBranch(repoPath string) (string, bytes.Buffer, error) {
 	branchBuffer, stdErr, err := run(repoPath, "rev-parse", "--abbrev-ref", "HEAD")
