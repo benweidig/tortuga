@@ -59,14 +59,13 @@ func runCommand(_ *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	if answer == false {
 		os.Exit(0)
 	}
 
 	fmt.Println()
 
-	pullPush(repos)
+	syncRepositories(repos)
 
 	fmt.Println()
 }
@@ -113,10 +112,10 @@ func findAndUpdate(basePath string) []repo.Repository {
 	return repos
 }
 
-func pullPush(repos []repo.Repository) {
+func syncRepositories(repos []repo.Repository) {
 	// 1. Separate repos by safely doable and not so safe
-	var safeRepos []repo.Repository
-	var unsafeRepos []repo.Repository
+	var safeRepos []*repo.Repository
+	var unsafeRepos []*repo.Repository
 
 	for idx := range repos {
 		r := &repos[idx]
@@ -132,10 +131,12 @@ func pullPush(repos []repo.Repository) {
 			// Unsafe means there's a possibility for conflicts due to a merge/rebase or stashing/unstashing
 			// the current work tree state
 			if (r.Outgoing == 0 && r.Changes.Stashable == 0) || (r.Incoming == 0 && r.Outgoing > 0) {
-				safeRepos = append(safeRepos, *r)
+				safeRepos = append(safeRepos, r)
 			} else {
-				unsafeRepos = append(unsafeRepos, *r)
+				unsafeRepos = append(unsafeRepos, r)
 			}
+		} else {
+			r.State = repo.StateSynced
 		}
 	}
 
@@ -143,7 +144,7 @@ func pullPush(repos []repo.Repository) {
 	w := uilive.New()
 	w.Start()
 
-	renderPullPushTable(w, repos)
+	renderSyncTable(w, repos)
 
 	// 3. Do work for safe repositories first
 	var wg sync.WaitGroup
@@ -151,7 +152,7 @@ func pullPush(repos []repo.Repository) {
 		wg.Add(len(safeRepos))
 
 		for idx := range safeRepos {
-			r := &safeRepos[idx]
+			r := safeRepos[idx]
 
 			go func() {
 				defer wg.Done()
@@ -160,7 +161,7 @@ func pullPush(repos []repo.Repository) {
 					// TODO: Error Handling
 				}
 
-				renderPullPushTable(w, repos)
+				renderSyncTable(w, repos)
 			}()
 		}
 		wg.Wait()
@@ -168,7 +169,7 @@ func pullPush(repos []repo.Repository) {
 
 	// 4. Do the unsafe repositories in sync fashion
 	for idx := range unsafeRepos {
-		r := &unsafeRepos[idx]
+		r := unsafeRepos[idx]
 
 		err := r.Sync()
 		if err != nil {
@@ -177,7 +178,7 @@ func pullPush(repos []repo.Repository) {
 		log.Fatal(err)
 
 		r.State = repo.StateSynced
-		renderPullPushTable(w, repos)
+		renderSyncTable(w, repos)
 	}
 
 	// 5. We're done, stop live-writer
@@ -252,7 +253,7 @@ func renderRepoTable(w *uilive.Writer, repos []repo.Repository) {
 	w.Flush()
 }
 
-func renderPullPushTable(w *uilive.Writer, repos []repo.Repository) {
+func renderSyncTable(w *uilive.Writer, repos []repo.Repository) {
 	table := clitable.New()
 	table.AddRow("PROJECT", "BRANCH", "STATUS")
 

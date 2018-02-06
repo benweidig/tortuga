@@ -83,7 +83,7 @@ func (r *Repository) Update(localOnly bool) error {
 	return nil
 }
 
-func (r Repository) Sync() error {
+func (r *Repository) Sync() error {
 	if r.Changes.Stashable > 0 {
 		_, err := git.Stash(r.path)
 		if err != nil {
@@ -93,9 +93,7 @@ func (r Repository) Sync() error {
 
 	if r.Incoming > 0 {
 		_, err := git.PullRebase(r.path)
-
 		if err != nil {
-			fmt.Printf("Couldn't pull/rebase %s [%s]: %s", r.Name, r.Branch, err)
 			return err
 		}
 	}
