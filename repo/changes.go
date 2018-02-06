@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-type Status struct {
+type Changes struct {
 	Modified        int
 	Added           int
 	Deleted         int
@@ -18,8 +18,8 @@ type Status struct {
 	Stashable       int
 }
 
-func NewStatus(stdOut bytes.Buffer) Status {
-	s := Status{
+func NewChanges(stdOut bytes.Buffer) Changes {
+	s := Changes{
 		Modified:        0,
 		Added:           0,
 		Deleted:         0,

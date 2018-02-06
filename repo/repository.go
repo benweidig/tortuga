@@ -13,7 +13,7 @@ type Repository struct {
 
 	Name     string
 	Branch   string
-	Status   Status
+	Changes  Changes
 	Incoming int
 	Outgoing int
 	Checked  bool
@@ -21,8 +21,9 @@ type Repository struct {
 
 func NewRepository(repoPath string) (Repository, error) {
 	r := Repository{
-		Name: path.Base(repoPath),
-		path: repoPath,
+		Name:    path.Base(repoPath),
+		path:    repoPath,
+		Checked: false,
 	}
 
 	branch, stdErr, err := git.CurrentBranch(r.path)
@@ -44,121 +45,62 @@ func (r *Repository) Update(localOnly bool) error {
 		if err != nil {
 			return err
 		}
-
-		err = r.updateStatus()
-		if err != nil {
-			return err
-		}
 	}
 
-	err = r.updateIncoming()
+	status, _, err := git.Status(r.path)
 	if err != nil {
 		return err
 	}
 
-	err = r.updateOutgoing()
+	r.Changes = NewChanges(status)
+
+	incoming, _, err := git.Incoming(r.path, r.Branch)
 	if err != nil {
 		return err
 	}
+	r.Incoming = incoming
+
+	outgoing, _, err := git.Outgoing(r.path, r.Branch)
+	if err != nil {
+		return err
+	}
+	r.Outgoing = outgoing
 
 	r.Checked = true
 
 	return nil
 }
 
-func (r *Repository) updateIncoming() error {
-	count, _, err := git.Incoming(r.path, r.Branch)
-	if err != nil {
-		return err
+func (r Repository) Sync() error {
+	if r.Changes.Stashable > 0 {
+		_, err := git.Stash(r.path)
+		if err != nil {
+			return err
+		}
 	}
 
-	r.Incoming = count
+	if r.Incoming > 0 {
+		_, err := git.PullRebase(r.path)
 
-	return nil
-}
-
-func (r *Repository) updateOutgoing() error {
-	count, _, err := git.Outgoing(r.path, r.Branch)
-	if err != nil {
-		return err
+		if err != nil {
+			fmt.Printf("Couldn't pull/rebase %s [%s]: %s", r.Name, r.Branch, err)
+			return err
+		}
 	}
 
-	r.Outgoing = count
-
-	return nil
-}
-
-func (r *Repository) updateStatus() error {
-	out, _, err := git.Status(r.path)
-	if err != nil {
-		return err
+	if r.Changes.Stashable > 0 {
+		_, err := git.PopStash(r.path)
+		if err != nil {
+			return err
+		}
 	}
 
-	r.Status = NewStatus(out)
-
-	return nil
-}
-
-func (r Repository) Stash() error {
-	if r.Status.Stashable == 0 {
-		return nil
-	}
-
-	_, err := git.Stash(r.path)
-	if err != nil {
-		return err
-	}
-
-	return err
-}
-
-func (r Repository) Unstash() error {
-	if r.Status.Stashable == 0 {
-		return nil
-	}
-
-	_, err := git.PopStash(r.path)
-	if err != nil {
-		return err
+	if r.Outgoing > 0 {
+		_, err := git.Push(r.path)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
-}
-
-func (r Repository) Pull() error {
-	if r.Incoming == 0 {
-		return nil
-	}
-
-	_, err := git.Pull(r.path)
-	if err != nil {
-		fmt.Printf("Couldn't pull %s [%s]: %s", r.Name, r.Branch, err)
-		return err
-	}
-
-	return err
-}
-
-func (r Repository) PullRebase() error {
-	if r.Incoming == 0 {
-		return nil
-	}
-
-	_, err := git.PullRebase(r.path)
-
-	if err != nil {
-		fmt.Printf("Couldn't pull/rebase %s [%s]: %s", r.Name, r.Branch, err)
-		return err
-	}
-
-	return err
-}
-
-func (r Repository) Push() error {
-	if r.Outgoing == 0 {
-		return nil
-	}
-
-	_, err := git.Push(r.path)
-	return err
 }

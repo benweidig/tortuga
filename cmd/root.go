@@ -67,6 +67,7 @@ func runCommand(cmd *cobra.Command, args []string) {
 	fmt.Println()
 
 	pullPush(repos)
+
 	fmt.Println()
 }
 
@@ -131,7 +132,7 @@ func pullPush(repos []repo.Repository) {
 			//
 			// Unsafe means there's a possibility for conflicts due to a merge/rebase or stashing/unstashing
 			// the current work tree state
-			if (r.Outgoing == 0 && r.Status.Stashable == 0) || (r.Incoming == 0 && r.Outgoing > 0) {
+			if (r.Outgoing == 0 && r.Changes.Stashable == 0) || (r.Incoming == 0 && r.Outgoing > 0) {
 				safeRepos = append(safeRepos, *r)
 			} else {
 				unsafeRepos = append(unsafeRepos, *r)
@@ -155,11 +156,7 @@ func pullPush(repos []repo.Repository) {
 
 			go func() {
 				defer wg.Done()
-				err := r.PullRebase()
-				if err != nil {
-					// TODO: Error Handling
-				}
-				err = r.Push()
+				err := r.Sync()
 				if err != nil {
 					// TODO: Error Handling
 				}
@@ -173,33 +170,15 @@ func pullPush(repos []repo.Repository) {
 	// 4. Do the unsafe repositories in sync fashion
 	for idx := range unsafeRepos {
 		r := &unsafeRepos[idx]
-		if r.Incoming > 0 {
-			err := r.Stash()
-			if err != nil {
-				log.Fatal(err)
-			}
 
-			err = r.PullRebase()
-
-			if err != nil {
-				log.Fatal(err)
-			}
-
-			err = r.Unstash()
-			if err != nil {
-				log.Fatal(err)
-			}
-		}
-
-		if r.Outgoing > 0 {
-			err := r.Push()
-			if err != nil {
-				log.Fatal(err)
-			}
+		err := r.Sync()
+		if err != nil {
 			log.Fatal(err)
 		}
+		log.Fatal(err)
 
 		r.Checked = true
+		renderPullPushTable(w, repos)
 	}
 
 	// 5. We're done, stop live-writer
@@ -250,10 +229,10 @@ func renderRepoTable(w *uilive.Writer, repos []repo.Repository) {
 		var status string
 		if r.Checked {
 			var statusParts []string
-			if r.Status.Total == 0 {
-				statusParts = append(statusParts, color.GreenString("%d*", r.Status.Total))
+			if r.Changes.Total == 0 {
+				statusParts = append(statusParts, color.GreenString("%d*", r.Changes.Total))
 			} else {
-				statusParts = append(statusParts, color.YellowString("%d*", r.Status.Total))
+				statusParts = append(statusParts, color.YellowString("%d*", r.Changes.Total))
 			}
 
 			if r.Incoming > 0 {
