@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Arguments of the command
 var (
 	localOnlyArg bool
 )
@@ -37,11 +38,14 @@ func init() {
 }
 
 func runCommand(_ *cobra.Command, args []string) {
+	// Determinate the directory to check.
 	var basePath string
 
+	// There can only be 0 or 1 arguments, so this check is enough
 	if len(args) == 1 {
 		basePath = args[0]
 	} else {
+		// Falback to actual working directory
 		wd, err := os.Getwd()
 		if err != nil {
 			log.Fatal("Couldn't retrieve working directory. " + err.Error())
@@ -51,10 +55,13 @@ func runCommand(_ *cobra.Command, args []string) {
 
 	repos := findAndUpdate(basePath)
 
+	// If no remote actions are supposed to be done we need to end here
 	if localOnlyArg {
+		fmt.Println("Local only, exiting...")
 		os.Exit(0)
 	}
 
+	// Check if we actual can do any work at all
 	atLeastOneDirty := false
 	for _, r := range repos {
 		if r.Incoming > 0 || r.Outgoing > 0 {
@@ -62,11 +69,12 @@ func runCommand(_ *cobra.Command, args []string) {
 			break
 		}
 	}
-
 	if atLeastOneDirty == false {
 		fmt.Println("No work can be done, exiting...")
 		os.Exit(0)
 	}
+
+	// There's is work to do, ask if we should
 	answer, err := askYN("Stash/Pull/Rebase/Push?")
 	if err != nil {
 		log.Fatal(err)
@@ -99,7 +107,7 @@ func findAndUpdate(basePath string) []repo.Repository {
 	w.Start()
 
 	// 4. Initial output showing all repos
-	renderRepoTable(w, repos)
+	renderChangesTable(w, repos)
 
 	// 5. Start a waitgroup
 	var wg sync.WaitGroup
@@ -111,7 +119,7 @@ func findAndUpdate(basePath string) []repo.Repository {
 		go func() {
 			defer wg.Done()
 			r.Update(localOnlyArg)
-			renderRepoTable(w, repos)
+			renderChangesTable(w, repos)
 		}()
 	}
 
@@ -132,6 +140,7 @@ func syncRepositories(repos []repo.Repository) {
 	for idx := range repos {
 		r := &repos[idx]
 
+		// No need to check an unsafe repository
 		if r.State == repo.StateError {
 			continue
 		}
@@ -215,19 +224,19 @@ func findRepos(basePath string) ([]repo.Repository, error) {
 			continue
 		}
 
+		// Build paths and check if we got .git directory
 		entryPath := path.Join(basePath, entry.Name())
 		gitPath := path.Join(entryPath, ".git")
 		stat, err := os.Stat(gitPath)
 		if err != nil {
 			continue
 		}
-
 		if stat.IsDir() == false {
 			continue
 		}
 
+		// Build repository
 		r, err := repo.NewRepository(entryPath)
-
 		if err != nil {
 			return repos, err
 		}
@@ -237,7 +246,7 @@ func findRepos(basePath string) ([]repo.Repository, error) {
 	return repos, nil
 }
 
-func renderRepoTable(w *uilive.Writer, repos []repo.Repository) {
+func renderChangesTable(w *uilive.Writer, repos []repo.Repository) {
 	table := clitable.New()
 	table.AddRow("PROJECT", "BRANCH", "STATUS")
 
@@ -327,5 +336,4 @@ func askYN(question string) (bool, error) {
 	}
 
 	return true, nil
-
 }

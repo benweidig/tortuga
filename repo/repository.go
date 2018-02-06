@@ -37,8 +37,9 @@ func NewRepository(repoPath string) (Repository, error) {
 	return r, nil
 }
 
+// Updates a Repository with the current changes and number of incoming/outgoing.
+// If localOnly is true no fetching fo the remote will occur.
 func (r *Repository) Update(localOnly bool) error {
-	var err error
 	if localOnly == false {
 		_, err := git.FetchAll(r.path)
 		if err != nil {
@@ -91,16 +92,16 @@ func (r *Repository) Sync() error {
 		}
 	}
 
-	if r.Changes.Stashable > 0 {
-		_, err := git.PopStash(r.path)
+	if r.Outgoing > 0 {
+		_, err := git.Push(r.path)
 		if err != nil {
 			r.State = StateError
 			return err
 		}
 	}
 
-	if r.Outgoing > 0 {
-		_, err := git.Push(r.path)
+	if r.Changes.Stashable > 0 {
+		_, err := git.PopStash(r.path)
 		if err != nil {
 			r.State = StateError
 			return err

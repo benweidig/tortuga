@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// Changes represents the differences between the index file and the current HEAD commit
 type Changes struct {
 	Modified        int
 	Added           int
@@ -14,8 +15,8 @@ type Changes struct {
 	Copied          int
 	UpdatedUnmerged int
 	Unversioned     int
-	Total           int
 	Stashable       int
+	Total           int
 }
 
 func NewChanges(stdOut bytes.Buffer) Changes {

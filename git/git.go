@@ -43,6 +43,7 @@ func CurrentBranch(repoPath string) (string, bytes.Buffer, error) {
 	// We have to sanitize the output for easier usage
 	branch := branchBuffer.String()
 	branch = strings.TrimSuffix(branch, "\n")
+
 	return branch, stdErr, err
 }
 
@@ -57,13 +58,13 @@ func Status(repoPath string) (bytes.Buffer, bytes.Buffer, error) {
 	return run(repoPath, "status", "--porcelain")
 }
 
-// Returns the count of incomming changes between the local head and upstream
+// Returns the count of incomming changes between the local HEAD and upstream
 func Incoming(repoPath string, branch string) (int, bytes.Buffer, error) {
 	rangeSpecifier := fmt.Sprintf("HEAD..%s@{upstream}", branch)
 	return commitDiff(repoPath, rangeSpecifier)
 }
 
-// Returns the count of outgoing changes between the local head and upstrea
+// Returns the count of outgoing changes between the remote push/upstream and the local HEAD
 func Outgoing(repoPath string, branch string) (int, bytes.Buffer, error) {
 	rangeSpecifier := fmt.Sprintf("%s@{push}..HEAD", branch)
 	return commitDiff(repoPath, rangeSpecifier)
