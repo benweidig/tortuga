@@ -26,7 +26,7 @@ var (
 )
 
 var RootCmd = &cobra.Command{
-	Version: "0.0.1",
+	Version: "1.0.0",
 	Use:     "tt",
 	Short:   "Tortuga",
 	Args:    cobra.MaximumNArgs(1),
