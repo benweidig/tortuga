@@ -12,11 +12,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/benweidig/cli-table"
 	"github.com/benweidig/tortuga/repo"
 	"github.com/fatih/color"
 	"github.com/gosuri/uilive"
 	"github.com/spf13/cobra"
+	"gopkg.in/benweidig/cli-table.v1"
 )
 
 // Arguments of the command
