@@ -13,15 +13,16 @@ As soon as I got a _"works reliably on my machine"_-version I will add releases.
 
 ## Usage
 ```
-tt [-l/--local-only] [<path>]
+tortuga [-l/--local-only] [<path>]
 ```
 
 ## Arguments
 
-| Argument          | Default | Description          |
-| ----------------- | ------- | -------------------- |
-| path              | .       | Path to repositories |
-| -l / --local-only | false   | Don't update remotes |
+| Argument          | Default | Description           |
+| ----------------- | ------- | --------------------- |
+| path              | .       | Path to repositories  |
+| -l / --local-only | false   | Don't update remotes  |
+| -m / --monochrome | false   | Don't use ANSI colors |
 
 
 ## License
