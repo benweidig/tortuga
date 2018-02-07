@@ -134,6 +134,7 @@ func findAndUpdate(basePath string) []repo.Repository {
 
 func syncRepositories(repos []repo.Repository) {
 	// 1. Separate repos by safely doable and not so safe
+	var syncableRepos []*repo.Repository
 	var safeRepos []*repo.Repository
 	var unsafeRepos []*repo.Repository
 
@@ -160,6 +161,8 @@ func syncRepositories(repos []repo.Repository) {
 			} else {
 				unsafeRepos = append(unsafeRepos, r)
 			}
+			syncableRepos = append(syncableRepos, r)
+
 		} else {
 			r.State = repo.StateSynced
 		}
@@ -169,7 +172,7 @@ func syncRepositories(repos []repo.Repository) {
 	w := uilive.New()
 	w.Start()
 
-	renderSyncTable(w, repos)
+	renderSyncTable(w, syncableRepos)
 
 	// 3. Do work for safe repositories first
 	var wg sync.WaitGroup
@@ -186,7 +189,7 @@ func syncRepositories(repos []repo.Repository) {
 					// TODO: Error Handling
 				}
 
-				renderSyncTable(w, repos)
+				renderSyncTable(w, syncableRepos)
 			}()
 		}
 		wg.Wait()
@@ -203,7 +206,7 @@ func syncRepositories(repos []repo.Repository) {
 		log.Fatal(err)
 
 		r.State = repo.StateSynced
-		renderSyncTable(w, repos)
+		renderSyncTable(w, syncableRepos)
 	}
 
 	// 5. We're done, stop live-writer
@@ -281,7 +284,7 @@ func renderChangesTable(w *uilive.Writer, repos []repo.Repository) {
 	w.Flush()
 }
 
-func renderSyncTable(w *uilive.Writer, repos []repo.Repository) {
+func renderSyncTable(w *uilive.Writer, repos []*repo.Repository) {
 	table := clitable.New()
 	table.AddRow("PROJECT", "BRANCH", "STATUS")
 
