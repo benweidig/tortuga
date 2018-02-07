@@ -21,7 +21,8 @@ import (
 
 // Arguments of the command
 var (
-	localOnlyArg bool
+	localOnlyArg  bool
+	monochromeArg bool
 )
 
 var RootCmd = &cobra.Command{
@@ -35,6 +36,7 @@ var RootCmd = &cobra.Command{
 
 func init() {
 	RootCmd.Flags().BoolVarP(&localOnlyArg, "local-only", "l", false, "Local mode, don't fetch remotes")
+	RootCmd.Flags().BoolVarP(&monochromeArg, "monochrome", "m", false, "Monochrome output, no ANSI colorize")
 }
 
 func runCommand(_ *cobra.Command, args []string) {
@@ -51,6 +53,12 @@ func runCommand(_ *cobra.Command, args []string) {
 			log.Fatal("Couldn't retrieve working directory. " + err.Error())
 		}
 		basePath = wd
+	}
+
+	// Disable colors if requested. Don't set it directly, the color library tries to check if
+	// the terminal actual supports colors beforehand and disables it.
+	if monochromeArg {
+		color.NoColor = true
 	}
 
 	repos := findAndUpdate(basePath)
