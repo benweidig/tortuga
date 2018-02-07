@@ -194,7 +194,7 @@ func syncRepositories(repos []repo.Repository) {
 				defer wg.Done()
 				err := r.Sync()
 				if err != nil {
-					// TODO: Error Handling
+					// Ignore error, it will be displayed
 				}
 
 				renderSyncTable(w, syncableRepos)
@@ -209,9 +209,8 @@ func syncRepositories(repos []repo.Repository) {
 
 		err := r.Sync()
 		if err != nil {
-			log.Fatal(err)
+			// Ignore error, it will be displayed
 		}
-		log.Fatal(err)
 
 		r.State = repo.StateSynced
 		renderSyncTable(w, syncableRepos)
@@ -294,7 +293,7 @@ func renderChangesTable(w *uilive.Writer, repos []repo.Repository) {
 
 func renderSyncTable(w *uilive.Writer, repos []*repo.Repository) {
 	table := clitable.New()
-	table.AddRow("PROJECT", "BRANCH", "STATUS")
+	table.AddRow("PROJECT", "BRANCH", "ACTIONS")
 
 	for _, r := range repos {
 		var status string
@@ -305,10 +304,10 @@ func renderSyncTable(w *uilive.Writer, repos []*repo.Repository) {
 			} else {
 				var statusParts []string
 				if r.Incoming > 0 {
-					statusParts = append(statusParts, fmt.Sprintf("%d pulled", r.Incoming))
+					statusParts = append(statusParts, fmt.Sprintf("%d↓", r.Incoming))
 				}
 				if r.Outgoing > 0 {
-					statusParts = append(statusParts, fmt.Sprintf("%d pushed", r.Outgoing))
+					statusParts = append(statusParts, fmt.Sprintf("%d↑", r.Outgoing))
 				}
 				status = strings.Join(statusParts, ", ")
 			}
