@@ -8,8 +8,6 @@ THIS TOOL IS A WORK IN PROGRESS!
 NOT BATTLE-TESTED AT ALL!
 TREAD WITH CARE!
 
-As soon as I got a _"works reliably on my machine"_-version I will add releases.
-
 
 ## Usage
 ```
@@ -18,12 +16,13 @@ tortuga [-l/--local-only] [<path>]
 
 ## Arguments
 
-| Argument          | Default | Description           |
-| ----------------- | ------- | --------------------- |
-| path              | .       | Path to repositories  |
-| -l / --local-only | false   | Don't update remotes  |
-| -m / --monochrome | false   | Don't use ANSI colors |
+| Argument          | Default | Description                        |
+| ----------------- | ------- | ---------------------------------- |
+| -l / --local-only | false   | Don't update remotes               |
+| -m / --monochrome | false   | Don't use ANSI colors              |
+| <path>            | .       | Path containing your repositories  |
 
+ANSI colors might be disabled automatically if the terminal doesn't seem to support it, but the detection is not perfect.
 
 ## License
 
