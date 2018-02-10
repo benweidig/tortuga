@@ -23,6 +23,7 @@ import (
 var (
 	localOnlyArg  bool
 	monochromeArg bool
+	yesArg        bool
 )
 
 var RootCmd = &cobra.Command{
@@ -37,6 +38,7 @@ var RootCmd = &cobra.Command{
 func init() {
 	RootCmd.Flags().BoolVarP(&localOnlyArg, "local-only", "l", false, "Local mode, don't fetch remotes")
 	RootCmd.Flags().BoolVarP(&monochromeArg, "monochrome", "m", false, "Monochrome output, no ANSI colorize")
+	RootCmd.Flags().BoolVarP(&yesArg, "yes", "y", false, "Prompt yes to Stash/Pull/Rebase/Push")
 }
 
 func runCommand(_ *cobra.Command, args []string) {
@@ -83,12 +85,14 @@ func runCommand(_ *cobra.Command, args []string) {
 	}
 
 	// There's is work to do, ask if we should
-	answer, err := askYN("Stash/Pull/Rebase/Push?")
-	if err != nil {
-		log.Fatal(err)
-	}
-	if answer == false {
-		os.Exit(0)
+	if yesArg == false {
+		answer, err := askYN("Stash/Pull/Rebase/Push?")
+		if err != nil {
+			log.Fatal(err)
+		}
+		if answer == false {
+			os.Exit(0)
+		}
 	}
 
 	fmt.Println()
