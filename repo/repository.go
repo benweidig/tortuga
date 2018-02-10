@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -31,8 +30,9 @@ func NewRepository(repoPath string) (Repository, error) {
 
 	branch, err := r.currentBranch()
 	if err != nil {
-		fmt.Println(err)
-		log.Fatal(fmt.Sprintf("Couldn't determinate branch. ", err.Error()))
+		r.State = StateError
+		r.Branch = "???"
+		return r, nil
 	}
 
 	r.Branch = branch
@@ -43,6 +43,10 @@ func NewRepository(repoPath string) (Repository, error) {
 // Updates a Repository with the current changes and number of incoming/outgoing.
 // If localOnly is true no fetching fo the remote will occur.
 func (r *Repository) Update(localOnly bool) error {
+	if r.State == StateError {
+		return nil
+	}
+
 	if localOnly == false {
 		_, _, err := r.git("fetch", "--all")
 		if err != nil {
@@ -79,6 +83,10 @@ func (r *Repository) Update(localOnly bool) error {
 }
 
 func (r *Repository) Sync() error {
+	if r.State == StateError {
+		return nil
+	}
+
 	if r.Changes.Stashable > 0 {
 		_, _, err := r.git("stash")
 		if err != nil {
