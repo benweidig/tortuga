@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// Repository represents Git repository, but only the currently checked out branch
 type Repository struct {
 	path string
 
@@ -21,6 +22,7 @@ type Repository struct {
 	State    State
 }
 
+// NewRepository creates a bare Repository construct containing the minimum for initial display
 func NewRepository(repoPath string) (Repository, error) {
 	r := Repository{
 		Name:  path.Base(repoPath),
@@ -40,7 +42,7 @@ func NewRepository(repoPath string) (Repository, error) {
 	return r, nil
 }
 
-// Updates a Repository with the current changes and number of incoming/outgoing.
+// Update gets and sets the current changes and number of incoming/outgoing of a Repository.
 // If localOnly is true no fetching fo the remote will occur.
 func (r *Repository) Update(localOnly bool) error {
 	if r.State == StateError {
@@ -82,6 +84,7 @@ func (r *Repository) Update(localOnly bool) error {
 	return nil
 }
 
+// Sync stashes, pulls, pushs and unstashes the Repository
 func (r *Repository) Sync() error {
 	if r.State == StateError {
 		return nil
@@ -168,7 +171,7 @@ func (r Repository) commitDiff(rangeSpecifier string) (int, error) {
 	scanner := bufio.NewScanner(&stdOut)
 	count := 0
 	for scanner.Scan() {
-		count += 1
+		count++
 	}
 
 	err = scanner.Err()

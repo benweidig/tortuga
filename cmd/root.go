@@ -26,6 +26,7 @@ var (
 	yesArg        bool
 )
 
+// RootCmd is the only command, so this is Tortuga
 var RootCmd = &cobra.Command{
 	Version: "1.1.0",
 	Use:     "tt",

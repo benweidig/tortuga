@@ -19,6 +19,7 @@ type Changes struct {
 	Total           int
 }
 
+// NewChanges creates a new Changes struct based on the stdOut of git status --porcelain
 func NewChanges(stdOut bytes.Buffer) Changes {
 	s := Changes{
 		Modified:        0,
@@ -36,19 +37,19 @@ func NewChanges(stdOut bytes.Buffer) Changes {
 
 		switch {
 		case strings.HasPrefix(row, " M "):
-			s.Modified += 1
+			s.Modified++
 		case strings.HasPrefix(row, " A "):
-			s.Added += 1
+			s.Added++
 		case strings.HasPrefix(row, " D "):
-			s.Deleted += 1
+			s.Deleted++
 		case strings.HasPrefix(row, " R "):
-			s.Renamed += 1
+			s.Renamed++
 		case strings.HasPrefix(row, " C "):
-			s.Copied += 1
+			s.Copied++
 		case strings.HasPrefix(row, " U "):
-			s.UpdatedUnmerged += 1
+			s.UpdatedUnmerged++
 		case strings.HasPrefix(row, "?? "):
-			s.Unversioned += 1
+			s.Unversioned++
 		}
 	}
 

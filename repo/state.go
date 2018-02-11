@@ -1,18 +1,18 @@
 package repo
 
-// A Repository State representing the current state in the Tortuga workflow
+// State represents representing the current state of a Repository in the Tortuga workflow
 type State int
 
 const (
-	// Initial state for new Repositories
+	// StateNone is the initial state
 	StateNone State = iota
 
-	// The Repository was updated and has local changes and Incoming/Outgoung count
+	// StateUpdated means the Repository was updated and has local changes and Incoming/Outgoung count set
 	StateUpdated
 
-	// All changes have been synced (even when no sync was needed it enters this State)
+	// StateSynced means the Repository was synced (even when no sync was needed it enters this State)
 	StateSynced
 
-	// A command failed, the repository shouldn't do any more actions
+	// StateError indicates any kind of error, the Repository shouldn't do any more actions
 	StateError
 )
