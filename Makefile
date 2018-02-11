@@ -7,12 +7,13 @@ GOCMD    = go
 GOCLEAN  = $(GOCMD) clean
 GOFMT    = $(GOCMD) fmt
 GOGET    = $(GOCMD) get
+GOLINT   = golint
 GOTEST   = $(GOCMD) test
 GOBUILD  = $(GOCMD) build
 
 # Tasks
 .PHONY: all
-all: clean fmt deps test build
+all: clean fmt deps lint test build
 
 .PHONY: clean
 clean:
@@ -27,6 +28,11 @@ fmt:
 .PHONY: deps
 deps:
 	go get -t -v ./...
+
+.PHONY: lint
+lint:
+	go get -u github.com/golang/lint/golint
+	golint ./...
 
 .PHONY: test
 test:
