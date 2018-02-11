@@ -4,15 +4,15 @@ VERSION ?= $(shell git describe --tags --always --abbrev=0 --match="[0-9]*.[0-9]
 
 # Go parameters
 GOCMD    = go
-GOGET    = $(GOCMD) get
-GOBUILD  = $(GOCMD) build
 GOCLEAN  = $(GOCMD) clean
-GOTEST   = $(GOCMD) test
 GOFMT    = $(GOCMD) fmt
+GOGET    = $(GOCMD) get
+GOTEST   = $(GOCMD) test
+GOBUILD  = $(GOCMD) build
 
 # Tasks
 .PHONY: all
-all: clean fmt test build
+all: clean fmt deps test build
 
 .PHONY: clean
 clean:
@@ -23,6 +23,10 @@ clean:
 .PHONY: fmt
 fmt:
 	$(GOFMT)
+
+.PHONY: deps
+deps:
+	go get -t -v ./...
 
 .PHONY: test
 test:
