@@ -6,6 +6,10 @@ CLI tool for fetching/pushing/rebasing multiple git repositories at once.
 [Based on Gopherize.me](https://gopherize.me/gopher/79e06dc4b7a8669c8aa0d6381af7f02f5474e3b7)  
 [Git Logo by Jason Long under CC BY 3.0](https://git-scm.com/downloads/logos)
 
+## Requirements
+
+The tool won't ask for your git credentials because it checks multiple repositories at once async. You should have the credentials available via git-cerdentials-helper/-cache or it will display _Error_ for repositories it can't authenticate with.
+
 ## Usage
 ```
 tortuga [-l/--local-only] [-m/--monochrome] [-y/--yes] [<path>]
