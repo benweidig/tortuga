@@ -50,7 +50,7 @@ func (r *Repository) Update(localOnly bool) error {
 	}
 
 	if localOnly == false {
-		_, _, err := r.git("fetch", "--all")
+		_, _, err := r.git("fetch", "origin")
 		if err != nil {
 			r.State = StateError
 			return err
