@@ -1,5 +1,5 @@
 # Project Settings
-BINARY   = tortuga
+BINARY   = tt
 VERSION ?= $(shell git describe --tags --always --abbrev=0 --match="[0-9]*.[0-9]*.[0-9]*" 2> /dev/null)
 
 # Go parameters
@@ -45,7 +45,7 @@ build:
 .PHONY: release
 release:
 	$(GOGET) github.com/mitchellh/gox
-	gox --output="build/${BINARY_NAME}_${VERSION}_{{.Dir}}_{{.OS}}_{{.Arch}}"
+	gox --output="build/${BINARY}_${VERSION}_{{.OS}}_{{.Arch}}"
 
 .PHONY: version
 version:
