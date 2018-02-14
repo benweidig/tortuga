@@ -21,7 +21,6 @@ all: clean fmt deps lint test build
 .PHONY: clean
 clean:
 	$(GOCLEAN)
-	rm -f ${BINARY}
 	rm -rf build
 
 .PHONY: fmt
@@ -43,7 +42,7 @@ test:
 
 .PHONY: build
 build:
-	$(GOBUILD) -ldflags "-X '${REPO}/version.CommitHash=${HASH}' -X '${REPO}/version.CompileDate=${DATE}'" -o ${BINARY}
+	$(GOBUILD) -ldflags "-X '${REPO}/version.CommitHash=${HASH}' -X '${REPO}/version.CompileDate=${DATE}'" -o build/${BINARY}
 
 .PHONY: release
 release:
