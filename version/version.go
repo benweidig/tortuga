@@ -6,10 +6,10 @@ import (
 )
 
 var (
-	// Version of the app, should be set by the linker when compiling
+	// Version of the app
 	Version = "1.2.0"
 
-	// CommitHash is the commit this version was built on
+	// CommitHash is the commit this version was built on, needs to be set by the linker
 	CommitHash = "n/a"
 
 	// CompileDate is the date this binary was compiled on
