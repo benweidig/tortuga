@@ -1,6 +1,6 @@
 # Project Settings
 BINARY   = tt
-PATH     = github.com/benweidig/tortuga
+REPO     = github.com/benweidig/tortuga
 HASH    := $(shell git rev-parse --short HEAD)
 DATE    := $(shell date)
 
@@ -12,7 +12,6 @@ GOGET    = $(GOCMD) get
 GOLINT   = golint
 GOTEST   = $(GOCMD) test
 GOBUILD  = $(GOCMD) build
-
 
 # Tasks
 .PHONY: all
@@ -30,12 +29,12 @@ fmt:
 
 .PHONY: deps
 deps:
-	go get -t -v ./...
+	$(GOGET) -t -v ./...
 
 .PHONY: lint
 lint:
-	go get -u github.com/golang/lint/golint
-	golint ./...
+	$(GOGET) -u github.com/golang/lint/golint
+	$(GOLINT) ./...
 
 .PHONY: test
 test:
@@ -43,7 +42,7 @@ test:
 
 .PHONY: build
 build:
-	$(GOBUILD) -ldflags "-X '${PATH}/version.CommitHash=${HASH}' -X '${PATH}/version.CompileDate=${DATE}'" -o ${BINARY}
+	$(GOBUILD) -ldflags "-X '${REPO}/version.CommitHash=${HASH}' -X '${REPO}/version.CompileDate=${DATE}'" -o ${BINARY}
 
 .PHONY: release
 release:
