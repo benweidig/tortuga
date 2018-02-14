@@ -1,12 +1,13 @@
 # Project Settings
-BINARY   = tt
-REPO     = github.com/benweidig/tortuga
-HASH    := $(shell git rev-parse --short HEAD)
-DATE    := $(shell date)
+BINARY = tt
+REPO   = github.com/benweidig/tortuga
+HASH  := $(shell git rev-parse --short HEAD)
+DATE  := $(shell date)
+TAG  ?= $(shell git describe --tags --always --abbrev=0 --match="[0-9]*.[0-9]*.[0-9]*" 2> /dev/null)
 
 # Go parameters
 GOCMD    = $(shell which go)
-GOCLEAN  = $(GOCMD) clean
+GOCLEAN = $(GOCMD) clean
 GOFMT    = $(GOCMD) fmt
 GOGET    = $(GOCMD) get
 GOLINT   = golint
