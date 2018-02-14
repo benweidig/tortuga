@@ -84,7 +84,7 @@ func (r *Repository) Update(localOnly bool) error {
 	return nil
 }
 
-// Sync stashes, pulls, pushs and unstashes the Repository
+// Sync stashes, rebases, pushs and unstashes the Repository
 func (r *Repository) Sync() error {
 	if r.State == StateError {
 		return nil
@@ -99,7 +99,7 @@ func (r *Repository) Sync() error {
 	}
 
 	if r.Incoming > 0 {
-		_, _, err := r.git("pull", "--rebase")
+		_, _, err := r.git("rebase", "@{u}")
 		if err != nil {
 			r.State = StateError
 			return err
