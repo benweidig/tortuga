@@ -47,7 +47,7 @@ build:
 .PHONY: release
 release:
 	$(GOGET) github.com/mitchellh/gox
-	gox --output="build/${BINARY}_${TAG}_{{.OS}}_{{.Arch}}"
+	gox -ldflags "-X '${REPO}/version.CommitHash=${HASH}' -X '${REPO}/version.CompileDate=${DATE}'" --output="build/${BINARY}_${TAG}_{{.OS}}_{{.Arch}}"
 
 .PHONY: version
 version:
