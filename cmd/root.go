@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/benweidig/tortuga/repo"
+	"github.com/benweidig/tortuga/version"
 	"github.com/fatih/color"
 	"github.com/gosuri/uilive"
 	"github.com/spf13/cobra"
@@ -28,7 +29,7 @@ var (
 
 // RootCmd is the only command, so this is Tortuga
 var RootCmd = &cobra.Command{
-	Version: "1.2.0",
+	Version: version.BuildVersion(),
 	Use:     "tt",
 	Short:   "Tortuga",
 	Args:    cobra.MaximumNArgs(1),
