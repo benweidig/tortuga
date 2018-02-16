@@ -16,6 +16,7 @@ type Repository struct {
 
 	Name     string
 	Branch   string
+	Remote   string
 	Changes  Changes
 	Incoming int
 	Outgoing int
@@ -30,14 +31,21 @@ func NewRepository(repoPath string) (Repository, error) {
 		State: StateNone,
 	}
 
-	branch, err := r.currentBranch()
+	branch, err := r.localBranch()
 	if err != nil {
 		r.State = StateError
 		r.Branch = "???"
 		return r, nil
 	}
-
 	r.Branch = branch
+
+	remoteBranch, err := r.remoteBranch()
+	if err != nil {
+		r.State = StateError
+		r.Branch = "???"
+		return r, nil
+	}
+	r.Remote = strings.Split(remoteBranch, "/")[0]
 
 	return r, nil
 }
@@ -50,7 +58,7 @@ func (r *Repository) Update(localOnly bool) error {
 	}
 
 	if localOnly == false {
-		_, _, err := r.git("fetch", "origin")
+		_, _, err := r.git("fetch", r.Remote)
 		if err != nil {
 			r.State = StateError
 			return err
@@ -148,9 +156,23 @@ func (r Repository) git(args ...string) (bytes.Buffer, bytes.Buffer, error) {
 	return outBuffer, errBuffer, err
 }
 
-// Returns the current branch of the repository
-func (r Repository) currentBranch() (string, error) {
+// Returns the local branch name of the repository
+func (r Repository) localBranch() (string, error) {
 	stdOut, _, err := r.git("rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		return "", err
+	}
+
+	// We have to sanitize the output for easier usage
+	branch := stdOut.String()
+	branch = strings.TrimSuffix(branch, "\n")
+
+	return branch, nil
+}
+
+// Returns the remote branch the repository
+func (r Repository) remoteBranch() (string, error) {
+	stdOut, _, err := r.git("rev-parse", "--symbolic-full-name", "--abbrev-ref", "@{u}")
 	if err != nil {
 		return "", err
 	}
