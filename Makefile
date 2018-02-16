@@ -3,7 +3,7 @@ BINARY = tt
 REPO   = github.com/benweidig/tortuga
 HASH  := $(shell git rev-parse --short HEAD)
 DATE  := $(shell date)
-TAG  ?= $(shell git describe --tags --always --abbrev=0 --match="[0-9]*.[0-9]*.[0-9]*" 2> /dev/null)
+TAG  ?= $(shell git describe --tags --always --abbrev=0 --match="v[0-9]*.[0-9]*.[0-9]*" 2> /dev/null)
 
 # Go parameters
 GOCMD    = $(shell which go)
