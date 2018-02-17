@@ -1,5 +1,6 @@
 # Project Settings
-BINARY = tortuga
+NAME = tortuga
+BINARY = tt
 REPO   = github.com/benweidig/tortuga
 HASH  := $(shell git rev-parse --short HEAD)
 DATE  := $(shell date)
@@ -14,6 +15,7 @@ GOGET    = $(GOCMD) get
 GOLINT   = golint
 GOTEST   = $(GOCMD) test
 GOBUILD  = $(GOCMD) build
+
 
 # Tasks
 .PHONY: all
@@ -48,11 +50,14 @@ build:
 .PHONY: cross-compile
 cross-compile:
 	$(GOGET) github.com/mitchellh/gox
-	gox -ldflags "-X '${REPO}/version.Version=${VERSION}' -X '${REPO}/version.CommitHash=${HASH}' -X '${REPO}/version.CompileDate=${DATE}'" --output="build/${BINARY}-${VERSION}-{{.OS}}_{{.Arch}}"
+	gox -ldflags "-X '${REPO}/version.Version=${VERSION}' -X '${REPO}/version.CommitHash=${HASH}' -X '${REPO}/version.CompileDate=${DATE}'" --output="build/${NAME}-${VERSION}-{{.OS}}_{{.Arch}}"
+
+.PHONY: compress
+compress:
+	for i in ./build/*; do gzip $$i; done
 
 .PHONY: release
-release: clean cross-compile
-	for i in ./build/*; do tar -czf $$i.tar.gz $$i; rm $$i; done
+release: clean cross-compile compress deb
 
 .PHONY: version
 version:
@@ -61,4 +66,22 @@ version:
 .PHONY: tag
 tag:
 	@echo $(TAG)
+
+.PHONY: deb
+deb:
+	# Prepare
+	mkdir -p build/deb/usr/bin/ build/deb/DEBIAN/
+	cp deb-control-template build/deb/DEBIAN/control
+	sed -i 's/PKG_NAME/${BINARY}/g' build/deb/DEBIAN/control
+	sed -i 's/PKG_VERSION/${VERSION}/g' build/deb/DEBIAN/control
+	# i386
+	sed -i 's/ARCH/i386/g' build/deb/DEBIAN/control
+	GOOS=linux GOARCH=386 ${GOBUILD} -ldflags "-X '${REPO}/version.Version=${VERSION}' -X '${REPO}/version.CommitHash=${HASH}' -X '${REPO}/version.CompileDate=${DATE}'" -o build/deb/usr/bin/${BINARY}
+	dpkg-deb --build build/deb build/${NAME}-${VERSION}-linux_386.deb
+	# amd64
+	sed -i 's/ARCH/amd64/g' build/deb/DEBIAN/control
+	GOOS=linux GOARCH=amd64 ${GOBUILD} -ldflags "-X '${REPO}/version.Version=${VERSION}' -X '${REPO}/version.CommitHash=${HASH}' -X '${REPO}/version.CompileDate=${DATE}'" -o build/deb/usr/bin/${BINARY}
+	dpkg-deb --build build/deb build/${NAME}-${VERSION}-linux_amd64.deb
+	# Cleanup
+	rm -r build/deb
 

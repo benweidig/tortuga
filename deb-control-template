@@ -1,0 +1,5 @@
+Package: PKG_NAME
+Version: PKG_VERSION
+Maintainer: Ben Weidig<ben+tortuga@netzgut.net>
+Architecture: ARCH
+Description: CLI tool for fetching/pushing/rebasing multiple git repositories at once
