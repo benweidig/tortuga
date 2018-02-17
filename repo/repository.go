@@ -71,7 +71,7 @@ func (r *Repository) Update(localOnly bool) error {
 	}
 
 	if localOnly == false {
-		_, _, err := r.git("fetch", "oriign2") // r.Remote)
+		_, _, err := r.git("fetch", r.Remote)
 		if err != nil {
 			r.registerError(err)
 			return err
