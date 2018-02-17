@@ -285,7 +285,11 @@ func renderChangesTable(w *uilive.Writer, repos []repo.Repository) {
 			}
 			status = strings.Join(statusParts, " ")
 		case repo.StateError:
-			status = color.RedString("Error")
+			if r.Error == repo.ErrorAuth {
+				status = color.RedString("Auth Error")
+			} else {
+				status = color.RedString("Error")
+			}
 		default:
 			status = "..."
 		}

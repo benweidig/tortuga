@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 // Repository represents Git repository, but only the currently checked out branch
@@ -21,7 +23,13 @@ type Repository struct {
 	Incoming int
 	Outgoing int
 	State    State
+	Error    error
 }
+
+// First steps towards some better error handling
+var (
+	ErrorAuth = errors.New("Authentication failed.")
+)
 
 // NewRepository creates a bare Repository construct containing the minimum for initial display
 func NewRepository(repoPath string) (Repository, error) {
@@ -33,21 +41,26 @@ func NewRepository(repoPath string) (Repository, error) {
 
 	branch, err := r.localBranch()
 	if err != nil {
-		r.State = StateError
+		r.registerError(err)
 		r.Branch = "???"
-		return r, nil
+		return r, err
 	}
 	r.Branch = branch
 
 	remoteBranch, err := r.remoteBranch()
 	if err != nil {
-		r.State = StateError
+		r.registerError(err)
 		r.Branch = "???"
-		return r, nil
+		return r, err
 	}
 	r.Remote = strings.Split(remoteBranch, "/")[0]
 
 	return r, nil
+}
+
+func (r *Repository) registerError(err error) {
+	r.State = StateError
+	r.Error = err
 }
 
 // Update gets and sets the current changes and number of incoming/outgoing of a Repository.
@@ -58,9 +71,9 @@ func (r *Repository) Update(localOnly bool) error {
 	}
 
 	if localOnly == false {
-		_, _, err := r.git("fetch", r.Remote)
+		_, _, err := r.git("fetch", "oriign2") // r.Remote)
 		if err != nil {
-			r.State = StateError
+			r.registerError(err)
 			return err
 		}
 	}
@@ -68,6 +81,7 @@ func (r *Repository) Update(localOnly bool) error {
 	status, _, err := r.git("status", "--porcelain")
 	if err != nil {
 		r.State = StateError
+		r.Error = err
 		return err
 	}
 
@@ -75,14 +89,14 @@ func (r *Repository) Update(localOnly bool) error {
 
 	incoming, err := r.commitDiff(fmt.Sprintf("HEAD..%s@{upstream}", r.Branch))
 	if err != nil {
-		r.State = StateError
+		r.registerError(err)
 		return err
 	}
 	r.Incoming = incoming
 
 	outgoing, err := r.commitDiff(fmt.Sprintf("%s@{push}..HEAD", r.Branch))
 	if err != nil {
-		r.State = StateError
+		r.registerError(err)
 		return err
 	}
 	r.Outgoing = outgoing
@@ -94,14 +108,14 @@ func (r *Repository) Update(localOnly bool) error {
 
 // Sync stashes, rebases, pushs and unstashes the Repository
 func (r *Repository) Sync() error {
-	if r.State == StateError {
+	if r.State >= StateError {
 		return nil
 	}
 
 	if r.Changes.Stashable > 0 {
 		_, _, err := r.git("stash")
 		if err != nil {
-			r.State = StateError
+			r.registerError(err)
 			return err
 		}
 	}
@@ -109,7 +123,7 @@ func (r *Repository) Sync() error {
 	if r.Incoming > 0 {
 		_, _, err := r.git("rebase", "@{u}")
 		if err != nil {
-			r.State = StateError
+			r.registerError(err)
 			return err
 		}
 	}
@@ -117,7 +131,7 @@ func (r *Repository) Sync() error {
 	if r.Outgoing > 0 {
 		_, _, err := r.git("push")
 		if err != nil {
-			r.State = StateError
+			r.registerError(err)
 			return err
 		}
 	}
@@ -125,7 +139,7 @@ func (r *Repository) Sync() error {
 	if r.Changes.Stashable > 0 {
 		_, _, err := r.git("stash", "pop")
 		if err != nil {
-			r.State = StateError
+			r.registerError(err)
 			return err
 		}
 	}
@@ -152,6 +166,13 @@ func (r Repository) git(args ...string) (bytes.Buffer, bytes.Buffer, error) {
 
 	// Run command, but don't handle errors here, this is just a helper function
 	err := cmd.Run()
+
+	if err != nil {
+		errOut := errBuffer.String()
+		if strings.HasPrefix(errOut, "fatal: could not read Username for ") || strings.HasPrefix(errOut, "fatal: could not read Password for ") || strings.HasPrefix(errOut, "fatal: could not read from ") {
+			err = ErrorAuth
+		}
+	}
 
 	return outBuffer, errBuffer, err
 }
