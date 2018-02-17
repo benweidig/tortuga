@@ -21,7 +21,7 @@ type Changes struct {
 
 // NewChanges creates a new Changes struct based on the stdOut of git status --porcelain
 func NewChanges(stdOut bytes.Buffer) Changes {
-	s := Changes{
+	c := Changes{
 		Modified:        0,
 		Added:           0,
 		Deleted:         0,
@@ -30,6 +30,7 @@ func NewChanges(stdOut bytes.Buffer) Changes {
 		UpdatedUnmerged: 0,
 		Unversioned:     0,
 	}
+
 	scanner := bufio.NewScanner(&stdOut)
 
 	for scanner.Scan() {
@@ -37,24 +38,24 @@ func NewChanges(stdOut bytes.Buffer) Changes {
 
 		switch {
 		case strings.HasPrefix(row, " M "):
-			s.Modified++
+			c.Modified++
 		case strings.HasPrefix(row, " A "):
-			s.Added++
+			c.Added++
 		case strings.HasPrefix(row, " D "):
-			s.Deleted++
+			c.Deleted++
 		case strings.HasPrefix(row, " R "):
-			s.Renamed++
+			c.Renamed++
 		case strings.HasPrefix(row, " C "):
-			s.Copied++
+			c.Copied++
 		case strings.HasPrefix(row, " U "):
-			s.UpdatedUnmerged++
+			c.UpdatedUnmerged++
 		case strings.HasPrefix(row, "?? "):
-			s.Unversioned++
+			c.Unversioned++
 		}
 	}
 
-	s.Stashable = s.Modified + s.Added + s.Deleted + s.Renamed + s.Copied + s.UpdatedUnmerged
-	s.Total = s.Stashable + s.Unversioned
+	c.Stashable = c.Modified + c.Added + c.Deleted + c.Renamed + c.Copied + c.UpdatedUnmerged
+	c.Total = c.Stashable + c.Unversioned
 
-	return s
+	return c
 }
