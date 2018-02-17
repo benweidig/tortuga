@@ -1,9 +1,10 @@
 # Project Settings
-BINARY = tt
+BINARY = tortuga
 REPO   = github.com/benweidig/tortuga
 HASH  := $(shell git rev-parse --short HEAD)
 DATE  := $(shell date)
 TAG  ?= $(shell git describe --tags --always --abbrev=0 --match="v[0-9]*.[0-9]*.[0-9]*" 2> /dev/null)
+VERSION = $(shell sed 's/^.//' <<< "${TAG}")
 
 # Go parameters
 GOCMD    = $(shell which go)
@@ -44,11 +45,20 @@ test:
 build:
 	$(GOBUILD) -ldflags "-X '${REPO}/version.CommitHash=${HASH}' -X '${REPO}/version.CompileDate=${DATE}'" -o build/${BINARY}
 
-.PHONY: release
-release:
+.PHONY: cross-compile
+cross-compile:
 	$(GOGET) github.com/mitchellh/gox
-	gox -ldflags "-X '${REPO}/version.CommitHash=${HASH}' -X '${REPO}/version.CompileDate=${DATE}'" --output="build/${BINARY}_${TAG}_{{.OS}}_{{.Arch}}"
+	gox -ldflags "-X '${REPO}/version.Version=${VERSION}' -X '${REPO}/version.CommitHash=${HASH}' -X '${REPO}/version.CompileDate=${DATE}'" --output="build/${BINARY}-${VERSION}-{{.OS}}_{{.Arch}}"
+
+.PHONY: release
+release: cross-compile
+	echo "Test"
 
 .PHONY: version
 version:
 	@echo $(VERSION)
+
+.PHONY: tag
+tag:
+	@echo $(TAG)
+
