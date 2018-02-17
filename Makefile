@@ -51,8 +51,8 @@ cross-compile:
 	gox -ldflags "-X '${REPO}/version.Version=${VERSION}' -X '${REPO}/version.CommitHash=${HASH}' -X '${REPO}/version.CompileDate=${DATE}'" --output="build/${BINARY}-${VERSION}-{{.OS}}_{{.Arch}}"
 
 .PHONY: release
-release: cross-compile
-	echo "Test"
+release: clean cross-compile
+	for i in ./build/*; do tar -czf $$i.tar.gz $$i; rm $$i; done
 
 .PHONY: version
 version:
