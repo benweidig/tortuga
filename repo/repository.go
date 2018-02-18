@@ -28,7 +28,7 @@ type Repository struct {
 
 // First steps towards some better error handling
 var (
-	ErrorAuth = errors.New("Authentication failed.")
+	ErrorAuth = errors.New("authentication failed")
 )
 
 // NewRepository creates a bare Repository construct containing the minimum for initial display
