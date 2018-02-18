@@ -12,7 +12,7 @@ The tool won't ask for your git credentials because it checks multiple repositor
 
 ## Usage
 ```
-tortuga [-l/--local-only] [-m/--monochrome] [-y/--yes] [<path>]
+tt [-l/--local-only] [-m/--monochrome] [-y/--yes] [<path>]
 ```
 
 ## Arguments
