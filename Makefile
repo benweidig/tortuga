@@ -187,7 +187,7 @@ release-linux:
 	rm -f ${BUILD_FOLDER}/deb/DEBIAN/control
 
 	#
-	# >> LINUX/ADM64
+	# >> LINUX/AMD64
 	#
 	# > build binary
 	#
@@ -196,7 +196,7 @@ release-linux:
 	#
 	# > tar.gz binary
 	#
-	tar --exclude ./${BUILD_FOLDER}/deb -czf ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_linux_amd64.tar.gz -C ${BUILD_FOLDER} .
+	tar --exclude ./deb -czf ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_linux_amd64.tar.gz -C ${BUILD_FOLDER} .
 
 	#
 	# > prepare .deb-file
@@ -228,7 +228,7 @@ release-linux:
 	#
 	# > tar.gz binary
 	#
-	tar --exclude ./${BUILD_FOLDER}/deb -czf ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_linux_arm.tar.gz -C ${BUILD_FOLDER} .
+	tar --exclude ./deb -czf ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_linux_arm.tar.gz -C ${BUILD_FOLDER} .
 
 	#
 	# > prepare .deb-file
