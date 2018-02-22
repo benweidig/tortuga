@@ -28,7 +28,8 @@ type Repository struct {
 
 // First steps towards some better error handling
 var (
-	ErrorAuth = errors.New("authentication failed")
+	ErrorAuth       = errors.New("authentication failed")
+	ErrorNoUpstream = errors.New("no upstream")
 )
 
 // NewRepository creates a bare Repository construct containing the minimum for initial display
@@ -50,7 +51,6 @@ func NewRepository(repoPath string) (Repository, error) {
 	remoteBranch, err := r.remoteBranch()
 	if err != nil {
 		r.registerError(err)
-		r.Branch = "???"
 		return r, err
 	}
 	r.Remote = strings.Split(remoteBranch, "/")[0]
@@ -171,6 +171,9 @@ func (r Repository) git(args ...string) (bytes.Buffer, bytes.Buffer, error) {
 		errOut := errBuffer.String()
 		if strings.HasPrefix(errOut, "fatal: could not read Username for ") || strings.HasPrefix(errOut, "fatal: could not read Password for ") || strings.HasPrefix(errOut, "fatal: could not read from ") {
 			err = ErrorAuth
+		}
+		if strings.HasPrefix(errOut, "fatal: no upstream") {
+			err = ErrorNoUpstream
 		}
 	}
 

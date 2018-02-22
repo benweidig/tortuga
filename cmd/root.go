@@ -251,11 +251,8 @@ func findRepos(basePath string) ([]repo.Repository, error) {
 			continue
 		}
 
-		// Build repository
-		r, err := repo.NewRepository(entryPath)
-		if err != nil {
-			return repos, err
-		}
+		// Build repository. We ignore errors so all will be displayed
+		r, _ := repo.NewRepository(entryPath)
 		repos = append(repos, r)
 	}
 
@@ -285,9 +282,12 @@ func renderChangesTable(w *uilive.Writer, repos []repo.Repository) {
 			}
 			status = strings.Join(statusParts, " ")
 		case repo.StateError:
-			if r.Error == repo.ErrorAuth {
+			switch r.Error {
+			case repo.ErrorAuth:
 				status = color.RedString("Auth Error")
-			} else {
+			case repo.ErrorNoUpstream:
+				status = color.RedString("No upstream")
+			default:
 				status = color.RedString("Error")
 			}
 		default:
