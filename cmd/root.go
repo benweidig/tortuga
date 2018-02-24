@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"bufio"
-	"errors"
 	"io/ioutil"
 	"log"
 	"os"
@@ -10,14 +8,12 @@ import (
 	"sync"
 
 	"fmt"
-	"strings"
 
 	"github.com/benweidig/tortuga/repo"
 	"github.com/benweidig/tortuga/version"
 	"github.com/fatih/color"
 	"github.com/gosuri/uilive"
 	"github.com/spf13/cobra"
-	"gopkg.in/benweidig/cli-table.v1"
 )
 
 // Arguments of the command
@@ -88,7 +84,7 @@ func runCommand(_ *cobra.Command, args []string) {
 
 	// There's is work to do, ask if we should
 	if yesArg == false {
-		answer, err := askYN("Stash/Pull/Rebase/Push?")
+		answer, err := askQuestionYN("Stash/Pull/Rebase/Push?")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -121,7 +117,7 @@ func findAndUpdate(basePath string) []repo.Repository {
 	w.Start()
 
 	// 4. Initial output showing all repos
-	renderChangesTable(w, repos)
+	renderCurrentStatus(w, repos)
 
 	// 5. Start a waitgroup
 	var wg sync.WaitGroup
@@ -133,7 +129,7 @@ func findAndUpdate(basePath string) []repo.Repository {
 		go func() {
 			defer wg.Done()
 			r.Update(localOnlyArg)
-			renderChangesTable(w, repos)
+			renderCurrentStatus(w, repos)
 		}()
 	}
 
@@ -186,7 +182,7 @@ func syncRepositories(repos []repo.Repository) {
 	w := uilive.New()
 	w.Start()
 
-	renderSyncTable(w, syncableRepos)
+	renderActionsTaken(w, syncableRepos)
 
 	// 3. Do work for safe repositories first
 	var wg sync.WaitGroup
@@ -203,7 +199,7 @@ func syncRepositories(repos []repo.Repository) {
 					// Ignore error, it will be displayed
 				}
 
-				renderSyncTable(w, syncableRepos)
+				renderActionsTaken(w, syncableRepos)
 			}()
 		}
 		wg.Wait()
@@ -219,7 +215,7 @@ func syncRepositories(repos []repo.Repository) {
 		}
 
 		r.State = repo.StateSynced
-		renderSyncTable(w, syncableRepos)
+		renderActionsTaken(w, syncableRepos)
 	}
 
 	// 5. We're done, stop live-writer
@@ -257,103 +253,4 @@ func findRepos(basePath string) ([]repo.Repository, error) {
 	}
 
 	return repos, nil
-}
-
-func renderChangesTable(w *uilive.Writer, repos []repo.Repository) {
-	table := clitable.New()
-	table.AddRow("PROJECT", "BRANCH", "STATUS")
-
-	for _, r := range repos {
-		var status string
-		switch r.State {
-		case repo.StateUpdated:
-			var statusParts []string
-			if r.Changes.Total == 0 {
-				statusParts = append(statusParts, color.GreenString("%d*", r.Changes.Total))
-			} else {
-				statusParts = append(statusParts, color.YellowString("%d*", r.Changes.Total))
-			}
-
-			if r.Incoming > 0 {
-				statusParts = append(statusParts, color.YellowString("%d↓", r.Incoming))
-			}
-			if r.Outgoing > 0 {
-				statusParts = append(statusParts, color.YellowString("%d↑", r.Outgoing))
-			}
-			status = strings.Join(statusParts, " ")
-		case repo.StateError:
-			switch r.Error {
-			case repo.ErrorAuth:
-				status = color.RedString("Auth Error")
-			case repo.ErrorNoUpstream:
-				status = color.RedString("No upstream")
-			default:
-				status = color.RedString("Error")
-			}
-		default:
-			status = "..."
-		}
-		table.AddRow(color.WhiteString(r.Name), color.WhiteString(r.Branch), status)
-	}
-
-	fmt.Fprintln(w, table)
-
-	w.Flush()
-}
-
-func renderSyncTable(w *uilive.Writer, repos []*repo.Repository) {
-	table := clitable.New()
-	table.AddRow("PROJECT", "BRANCH", "ACTIONS")
-
-	for _, r := range repos {
-		var status string
-		switch r.State {
-		case repo.StateSynced:
-			if r.Outgoing == 0 && r.Incoming == 0 {
-				status = "Nothing to do"
-			} else {
-				var statusParts []string
-				if r.Incoming > 0 {
-					statusParts = append(statusParts, fmt.Sprintf("%d↓", r.Incoming))
-				}
-				if r.Outgoing > 0 {
-					statusParts = append(statusParts, fmt.Sprintf("%d↑", r.Outgoing))
-				}
-				status = strings.Join(statusParts, ", ")
-			}
-			status = color.GreenString(status)
-
-		case repo.StateError:
-			status = color.RedString("Error")
-		default:
-			status = "..."
-		}
-		table.AddRow(color.New(color.FgWhite).Sprint(r.Name), color.New(color.FgWhite).Sprint(r.Branch), color.New(color.FgWhite).Sprint(status))
-	}
-
-	fmt.Fprintln(w, table)
-
-	w.Flush()
-}
-
-func askYN(question string) (bool, error) {
-	color.New(color.Bold).Print(">>> ")
-	fmt.Printf("%s [Y/n] ", question)
-
-	r := bufio.NewReader(os.Stdin)
-	answer, err := r.ReadString('\n')
-	if err != nil {
-		return false, err
-	}
-
-	if len(answer) > 2 {
-		msg := fmt.Sprintf("Invalid option: %s", answer)
-		return false, errors.New(msg)
-	}
-
-	if strings.ToLower(answer) == "n\n" {
-		return false, nil
-	}
-
-	return true, nil
 }

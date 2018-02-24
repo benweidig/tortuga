@@ -1,15 +1,11 @@
 package repo
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
-	"os"
-	"os/exec"
 	"path"
 	"strings"
 
-	"github.com/pkg/errors"
+	"github.com/benweidig/tortuga/git"
 )
 
 // Repository represents Git repository, but only the currently checked out branch
@@ -26,12 +22,6 @@ type Repository struct {
 	Error    error
 }
 
-// First steps towards some better error handling
-var (
-	ErrorAuth       = errors.New("authentication failed")
-	ErrorNoUpstream = errors.New("no upstream")
-)
-
 // NewRepository creates a bare Repository construct containing the minimum for initial display
 func NewRepository(repoPath string) (Repository, error) {
 	r := Repository{
@@ -40,7 +30,7 @@ func NewRepository(repoPath string) (Repository, error) {
 		State: StateNone,
 	}
 
-	branch, err := r.localBranch()
+	branch, err := git.LocalBranch(r.path)
 	if err != nil {
 		r.registerError(err)
 		r.Branch = "???"
@@ -48,12 +38,12 @@ func NewRepository(repoPath string) (Repository, error) {
 	}
 	r.Branch = branch
 
-	remoteBranch, err := r.remoteBranch()
+	upstreamBranch, err := git.UpstreamBranch(r.path)
 	if err != nil {
 		r.registerError(err)
 		return r, err
 	}
-	r.Remote = strings.Split(remoteBranch, "/")[0]
+	r.Remote = strings.Split(upstreamBranch, "/")[0]
 
 	return r, nil
 }
@@ -71,14 +61,14 @@ func (r *Repository) Update(localOnly bool) error {
 	}
 
 	if localOnly == false {
-		_, _, err := r.git("fetch", r.Remote)
+		err := git.Fetch(r.path, r.Remote)
 		if err != nil {
 			r.registerError(err)
 			return err
 		}
 	}
 
-	status, _, err := r.git("status", "--porcelain")
+	status, err := git.Status(r.path)
 	if err != nil {
 		r.State = StateError
 		r.Error = err
@@ -87,14 +77,14 @@ func (r *Repository) Update(localOnly bool) error {
 
 	r.Changes = NewChanges(status)
 
-	incoming, err := r.commitDiff(fmt.Sprintf("HEAD..%s@{upstream}", r.Branch))
+	incoming, err := git.CommitsCount(r.path, fmt.Sprintf("HEAD..%s@{upstream}", r.Branch))
 	if err != nil {
 		r.registerError(err)
 		return err
 	}
 	r.Incoming = incoming
 
-	outgoing, err := r.commitDiff(fmt.Sprintf("%s@{push}..HEAD", r.Branch))
+	outgoing, err := git.CommitsCount(r.path, fmt.Sprintf("%s@{push}..HEAD", r.Branch))
 	if err != nil {
 		r.registerError(err)
 		return err
@@ -113,7 +103,7 @@ func (r *Repository) Sync() error {
 	}
 
 	if r.Changes.Stashable > 0 {
-		_, _, err := r.git("stash")
+		err := git.Stash(r.path)
 		if err != nil {
 			r.registerError(err)
 			return err
@@ -121,7 +111,7 @@ func (r *Repository) Sync() error {
 	}
 
 	if r.Incoming > 0 {
-		_, _, err := r.git("rebase", "@{u}")
+		err := git.Rebase(r.path)
 		if err != nil {
 			r.registerError(err)
 			return err
@@ -129,7 +119,7 @@ func (r *Repository) Sync() error {
 	}
 
 	if r.Outgoing > 0 {
-		_, _, err := r.git("push")
+		err := git.Push(r.path)
 		if err != nil {
 			r.registerError(err)
 			return err
@@ -137,7 +127,7 @@ func (r *Repository) Sync() error {
 	}
 
 	if r.Changes.Stashable > 0 {
-		_, _, err := r.git("stash", "pop")
+		err := git.StashPop(r.path)
 		if err != nil {
 			r.registerError(err)
 			return err
@@ -147,83 +137,4 @@ func (r *Repository) Sync() error {
 	r.State = StateSynced
 
 	return nil
-}
-
-// Runs a git command with the specified args against a path
-func (r Repository) git(args ...string) (bytes.Buffer, bytes.Buffer, error) {
-	// Disable terminal prompting so it fails if credentials are needed
-	os.Setenv("GIT_TERMINAL_PROMPT", "0")
-
-	// Combine args and build command
-	args = append([]string{"-C", r.path}, args...)
-	cmd := exec.Command("git", args...)
-
-	// Attach buffers, a function might need both so just grab both
-	var outBuffer bytes.Buffer
-	var errBuffer bytes.Buffer
-	cmd.Stdout = &outBuffer
-	cmd.Stderr = &errBuffer
-
-	// Run command, but don't handle errors here, this is just a helper function
-	err := cmd.Run()
-
-	if err != nil {
-		errOut := errBuffer.String()
-		if strings.HasPrefix(errOut, "fatal: could not read Username for ") || strings.HasPrefix(errOut, "fatal: could not read Password for ") || strings.HasPrefix(errOut, "fatal: could not read from ") {
-			err = ErrorAuth
-		}
-		if strings.HasPrefix(errOut, "fatal: no upstream") {
-			err = ErrorNoUpstream
-		}
-	}
-
-	return outBuffer, errBuffer, err
-}
-
-// Returns the local branch name of the repository
-func (r Repository) localBranch() (string, error) {
-	stdOut, _, err := r.git("rev-parse", "--abbrev-ref", "HEAD")
-	if err != nil {
-		return "", err
-	}
-
-	// We have to sanitize the output for easier usage
-	branch := stdOut.String()
-	branch = strings.TrimSuffix(branch, "\n")
-
-	return branch, nil
-}
-
-// Returns the remote branch the repository
-func (r Repository) remoteBranch() (string, error) {
-	stdOut, _, err := r.git("rev-parse", "--symbolic-full-name", "--abbrev-ref", "@{u}")
-	if err != nil {
-		return "", err
-	}
-
-	// We have to sanitize the output for easier usage
-	branch := stdOut.String()
-	branch = strings.TrimSuffix(branch, "\n")
-
-	return branch, nil
-}
-
-func (r Repository) commitDiff(rangeSpecifier string) (int, error) {
-	stdOut, _, err := r.git("rev-list", rangeSpecifier)
-	if err != nil {
-		return 0, err
-	}
-
-	scanner := bufio.NewScanner(&stdOut)
-	count := 0
-	for scanner.Scan() {
-		count++
-	}
-
-	err = scanner.Err()
-	if err != nil {
-		return 0, err
-	}
-
-	return count, nil
 }
