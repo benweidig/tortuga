@@ -22,5 +22,5 @@ func BuildVersion() string {
 	if len(date) == 0 {
 		date = time.Now().String()
 	}
-	return fmt.Sprintf("%s-%s (%s)", Version, CommitHash, CompileDate)
+	return fmt.Sprintf("%s-%s (%s)", Version, CommitHash, date)
 }
