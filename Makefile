@@ -4,7 +4,7 @@ REPO    := github.com/benweidig/tortuga
 HASH    := $(shell git rev-parse --short HEAD)
 DATE    := $(shell date)
 TAG     := $(shell git describe --tags --always --abbrev=0 --match="v[0-9]*.[0-9]*.[0-9]*" 2> /dev/null)
-VERSION := $(shell sed 's/^.//' <<< "${TAG}")
+VERSION := $(shell echo "${TAG}" | sed 's/^.//')
 
 BUILD_FOLDER   := build/${PROJECT}-${VERSION}
 RELEASE_FOLDER := release/${PROJECT}-${VERSION}
@@ -87,7 +87,7 @@ version:
 	# >>> TARGET: version
 	# ################################################################################
 	#
-	@echo $(VERSION)
+	@echo "Version: ${VERSION}"
 
 
 .PHONY: tag
@@ -97,7 +97,7 @@ tag:
 	# >>> TARGET: tag
 	# ################################################################################
 	#
-	@echo $(TAG)
+	@echo "Tag: ${TAG}"
 
 
 .PHONY: prepare-release
@@ -115,27 +115,6 @@ prepare-release:
 
 .PHONY: release
 release: clean fmt deps lint test prepare-release release-darwin release-linux release-windows
-
-
-.PHONY: release-darwin
-release-darwin:
-	#
-	# ################################################################################
-	# >>> TARGET: release-darwin
-	# ################################################################################
-	#
-
-	#
-	# >> DARWIN/386
-	GOOS=darwin GOARCH=386 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
-	tar -czf ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_darwin_386.tar.gz -C ${BUILD_FOLDER} .
-	rm ${BUILD_FOLDER}/${BINARY}
-
-	#
-	# >> DARWIN/AMD64
-	GOOS=darwin GOARCH=amd64 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
-	tar -czf ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_darwin_amd64.tar.gz -C ${BUILD_FOLDER} .
-	rm ${BUILD_FOLDER}/${BINARY}
 
 
 .PHONY: release-linux
@@ -256,6 +235,10 @@ release-linux:
 
 .PHONY: release-windows
 release-windows:
+	# Window has some dependencies that won't be available by the usual way, so we
+	# need to get them here
+	go get -u github.com/inconshreveable/mousetrap
+	go get -u github.com/mattn/go-isatty
 	#
 	# ################################################################################
 	# >>> TARGET: release-windows
@@ -268,7 +251,7 @@ release-windows:
 	rm ${BUILD_FOLDER}/${BINARY}
 
 	#
-	# >> DARWIN/AMD64
+	# >> WINDOWS/AMD64
 	#
 	GOOS=windows GOARCH=amd64 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
 	tar -czf ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_windows_amd64.tar.gz -C ${BUILD_FOLDER} .
@@ -294,4 +277,3 @@ release-darwin:
 	GOOS=darwin GOARCH=amd64 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
 	tar -czf ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_darwin_amd64.tar.gz -C ${BUILD_FOLDER} .
 	rm ${BUILD_FOLDER}/${BINARY}
-
