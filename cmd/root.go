@@ -166,7 +166,7 @@ func syncRepositories(repos []repo.Repository) {
 			//
 			// Unsafe means there's a possibility for conflicts due to a merge/rebase or stashing/unstashing
 			// the current work tree state
-			if (r.Outgoing == 0 && r.Changes.Stashable == 0) || (r.Incoming == 0 && r.Outgoing > 0) {
+			if (r.Outgoing == 0 && r.LocalChanges.Stashable == 0) || (r.Incoming == 0 && r.Outgoing > 0) {
 				safeRepos = append(safeRepos, r)
 			} else {
 				unsafeRepos = append(unsafeRepos, r)

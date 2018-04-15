@@ -12,14 +12,14 @@ import (
 type Repository struct {
 	path string
 
-	Name     string
-	Branch   string
-	Remote   string
-	Changes  Changes
-	Incoming int
-	Outgoing int
-	State    State
-	Error    error
+	Name         string
+	Branch       string
+	Remote       string
+	LocalChanges Changes
+	Incoming     int
+	Outgoing     int
+	State        State
+	Error        error
 }
 
 // NewRepository creates a bare Repository construct containing the minimum for initial display
@@ -75,7 +75,7 @@ func (r *Repository) Update(localOnly bool) error {
 		return err
 	}
 
-	r.Changes = NewChanges(status)
+	r.LocalChanges = NewChanges(status)
 
 	incoming, err := git.CommitsCount(r.path, fmt.Sprintf("HEAD..%s@{upstream}", r.Branch))
 	if err != nil {
@@ -102,7 +102,7 @@ func (r *Repository) Sync() error {
 		return nil
 	}
 
-	if r.Changes.Stashable > 0 {
+	if r.LocalChanges.Stashable > 0 {
 		err := git.Stash(r.path)
 		if err != nil {
 			r.registerError(err)
@@ -126,7 +126,7 @@ func (r *Repository) Sync() error {
 		}
 	}
 
-	if r.Changes.Stashable > 0 {
+	if r.LocalChanges.Stashable > 0 {
 		err := git.StashPop(r.path)
 		if err != nil {
 			r.registerError(err)

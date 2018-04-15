@@ -20,10 +20,10 @@ func renderCurrentStatus(w *uilive.Writer, repos []repo.Repository) {
 		switch r.State {
 		case repo.StateUpdated:
 			var statusParts []string
-			if r.Changes.Total == 0 {
-				statusParts = append(statusParts, color.GreenString("%d*", r.Changes.Total))
+			if r.LocalChanges.Total == 0 {
+				statusParts = append(statusParts, color.GreenString("%d*", r.LocalChanges.Total))
 			} else {
-				statusParts = append(statusParts, color.YellowString("%d*", r.Changes.Total))
+				statusParts = append(statusParts, color.YellowString("%d*", r.LocalChanges.Total))
 			}
 
 			if r.Incoming > 0 {
