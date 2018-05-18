@@ -23,8 +23,8 @@ type Repository struct {
 }
 
 // NewRepository creates a bare Repository construct containing the minimum for initial display
-func NewRepository(repoPath string) (Repository, error) {
-	r := Repository{
+func NewRepository(repoPath string) (*Repository, error) {
+	r := &Repository{
 		Name:  path.Base(repoPath),
 		path:  repoPath,
 		State: StateNone,

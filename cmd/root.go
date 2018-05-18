@@ -100,7 +100,7 @@ func runCommand(_ *cobra.Command, args []string) {
 	fmt.Println()
 }
 
-func findAndUpdate(basePath string) []repo.Repository {
+func findAndUpdate(basePath string) []*repo.Repository {
 	// 1. Find all available repositories
 	repos, err := findRepos(basePath)
 	if err != nil {
@@ -125,7 +125,7 @@ func findAndUpdate(basePath string) []repo.Repository {
 
 	// 6. Iterate over the repos and parallel check/update the repos and update the output
 	for idx := range repos {
-		r := &repos[idx]
+		r := repos[idx]
 		go func() {
 			defer wg.Done()
 			r.Update(localOnlyArg)
@@ -142,14 +142,14 @@ func findAndUpdate(basePath string) []repo.Repository {
 	return repos
 }
 
-func syncRepositories(repos []repo.Repository) {
+func syncRepositories(repos []*repo.Repository) {
 	// 1. Separate repos by safely doable and not so safe
 	var syncableRepos []*repo.Repository
 	var safeRepos []*repo.Repository
 	var unsafeRepos []*repo.Repository
 
 	for idx := range repos {
-		r := &repos[idx]
+		r := repos[idx]
 
 		// No need to check an unsafe repository
 		if r.State == repo.StateError {
@@ -222,8 +222,8 @@ func syncRepositories(repos []repo.Repository) {
 	w.Stop()
 }
 
-func findRepos(basePath string) ([]repo.Repository, error) {
-	var repos []repo.Repository
+func findRepos(basePath string) ([]*repo.Repository, error) {
+	var repos []*repo.Repository
 
 	entries, err := ioutil.ReadDir(basePath)
 	if err != nil {

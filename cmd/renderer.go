@@ -11,7 +11,7 @@ import (
 	"github.com/gosuri/uilive"
 )
 
-func renderCurrentStatus(w *uilive.Writer, repos []repo.Repository) {
+func renderCurrentStatus(w *uilive.Writer, repos []*repo.Repository) {
 	table := clitable.New()
 	table.AddRow("PROJECT", "BRANCH", "STATUS")
 
