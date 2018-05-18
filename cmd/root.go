@@ -214,7 +214,6 @@ func syncRepositories(repos []*repo.Repository) {
 			// Ignore error, it will be displayed
 		}
 
-		r.State = repo.StateSynced
 		renderActionsTaken(w, syncableRepos)
 	}
 
