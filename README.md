@@ -10,6 +10,8 @@ CLI tool for fetching/pushing/rebasing multiple git repositories at once.
 
 The tool won't ask for your git credentials because it checks multiple repositories at once async. You should have the credentials available via git-cerdentials-helper/-cache or it will display _Error_ for repositories it can't authenticate with.
 
+Go 1.10 due to dependency [cli-table](https://github.com/benweidig/cli-table).
+
 ## Install
 
 You can either build from source, use the .deb-files, or on macOS just use homebrew with `brew install benweidig/homebrew-tap/tortuga`.
