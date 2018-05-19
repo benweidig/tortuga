@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	clitable "github.com/benweidig/cli-table"
 	"github.com/benweidig/tortuga/git"
 	"github.com/benweidig/tortuga/repo"
 	"github.com/fatih/color"
 	"github.com/gosuri/uilive"
+	clitable "gopkg.in/benweidig/cli-table.v2"
 )
 
 func renderCurrentStatus(w *uilive.Writer, repos []*repo.Repository) {
