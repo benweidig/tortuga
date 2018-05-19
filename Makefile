@@ -6,8 +6,10 @@ DATE    := $(shell date)
 TAG     := $(shell git describe --tags --always --abbrev=0 --match="v[0-9]*.[0-9]*.[0-9]*" 2> /dev/null)
 VERSION := $(shell echo "${TAG}" | sed 's/^.//')
 
-BUILD_FOLDER   := build/${PROJECT}-${VERSION}
-RELEASE_FOLDER := release/${PROJECT}-${VERSION}
+BASE_BUILD_FOLDER := build
+VERSION_FOLDER    := ${PROJECT}-${VERSION}
+BUILD_FOLDER      := ${BASE_BUILD_FOLDER}/${VERSION_FOLDER}
+RELEASE_FOLDER    := release/${PROJECT}-${VERSION}
 
 LDFLAGS_DEV     := -ldflags "-X '${REPO}/version.CommitHash=${HASH}' -X '${REPO}/version.CompileDate=${DATE}'"
 LDFLAGS_RELEASE := -ldflags "-X '${REPO}/version.Version=${VERSION}' -X '${REPO}/version.CommitHash=${HASH}' -X '${REPO}/version.CompileDate=${DATE}'"
@@ -143,7 +145,7 @@ release-linux:
 	#
 	# > tar.gz binary
 	#
-	tar --exclude ./deb -czf ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_linux_386.tar.gz -C ${BUILD_FOLDER} .
+	tar --exclude ${VERSION_FOLDER}/deb -czf ${RELEASE_FOLDER}/${VERSION_FOLDER}_linux_386.tar.gz -C ${BASE_BUILD_FOLDER} ${VERSION_FOLDER}
 
 	#
 	# > prepare .deb-file
@@ -175,7 +177,7 @@ release-linux:
 	#
 	# > tar.gz binary
 	#
-	tar --exclude ./deb -czf ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_linux_amd64.tar.gz -C ${BUILD_FOLDER} .
+	tar --exclude ${VERSION_FOLDER}/deb -czf ${RELEASE_FOLDER}/${VERSION_FOLDER}_linux_amd64.tar.gz -C ${BASE_BUILD_FOLDER} ${VERSION_FOLDER}
 
 	#
 	# > prepare .deb-file
@@ -207,7 +209,7 @@ release-linux:
 	#
 	# > tar.gz binary
 	#
-	tar --exclude ./deb -czf ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_linux_arm.tar.gz -C ${BUILD_FOLDER} .
+	tar --exclude ${VERSION_FOLDER}/deb -czf ${RELEASE_FOLDER}/${VERSION_FOLDER}_linux_arm.tar.gz -C ${BASE_BUILD_FOLDER} ${VERSION_FOLDER}
 
 	#
 	# > prepare .deb-file
@@ -247,14 +249,14 @@ release-windows:
 	# >> WINDOWS/386
 	#
 	GOOS=windows GOARCH=386 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
-	tar -czf ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_windows_386.tar.gz -C ${BUILD_FOLDER} .
+	tar --exclude ${VERSION_FOLDER}/deb -czf ${RELEASE_FOLDER}/${VERSION_FOLDER}_windows_386.tar.gz -C ${BASE_BUILD_FOLDER} ${VERSION_FOLDER}
 	rm ${BUILD_FOLDER}/${BINARY}
 
 	#
 	# >> WINDOWS/AMD64
 	#
 	GOOS=windows GOARCH=amd64 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
-	tar -czf ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_windows_amd64.tar.gz -C ${BUILD_FOLDER} .
+	tar --exclude ${VERSION_FOLDER}/deb -czf ${RELEASE_FOLDER}/${VERSION_FOLDER}_windows_amd64.tar.gz -C ${BASE_BUILD_FOLDER} ${VERSION_FOLDER}
 	rm ${BUILD_FOLDER}/${BINARY}
 
 
@@ -268,12 +270,12 @@ release-darwin:
 	# >>DARWIN/386
 	#
 	GOOS=darwin GOARCH=386 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
-	tar -czf ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_darwin_386.tar.gz -C ${BUILD_FOLDER} .
+	tar --exclude ${VERSION_FOLDER}/deb -czf ${RELEASE_FOLDER}/${VERSION_FOLDER}_darwin_386.tar.gz -C ${BASE_BUILD_FOLDER} ${VERSION_FOLDER}
 	rm ${BUILD_FOLDER}/${BINARY}
 
 	#
 	# >> DARWIN/AMD64
 	#
 	GOOS=darwin GOARCH=amd64 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
-	tar -czf ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_darwin_amd64.tar.gz -C ${BUILD_FOLDER} .
+	tar --exclude ${VERSION_FOLDER}/deb -czf ${RELEASE_FOLDER}/${VERSION_FOLDER}_darwin_amd64.tar.gz -C ${BASE_BUILD_FOLDER} ${VERSION_FOLDER}
 	rm ${BUILD_FOLDER}/${BINARY}
