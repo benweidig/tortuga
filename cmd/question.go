@@ -20,13 +20,13 @@ func askQuestionYN(question string) (bool, error) {
 		return false, err
 	}
 
-	sanitezidAnswer := strings.TrimSpace(strings.ToLower(answer))
-	if len(sanitezidAnswer) > 1 {
-		msg := fmt.Sprintf("Invalid option: '%s'", sanitezidAnswer)
+	sanitizedAnswer := strings.TrimSpace(strings.ToLower(answer))
+	if len(sanitizedAnswer) > 1 {
+		msg := fmt.Sprintf("Invalid option: '%s'", sanitizedAnswer)
 		return false, errors.New(msg)
 	}
 
-	if sanitezidAnswer == "y" || sanitezidAnswer == "" {
+	if sanitizedAnswer == "y" || sanitizedAnswer == "" {
 		return true, nil
 	}
 
