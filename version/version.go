@@ -7,7 +7,7 @@ import (
 
 var (
 	// Version of the app
-	Version = "1.3.1"
+	Version = "2.0.0"
 
 	// CommitHash is the commit this version was built on, needs to be set by the linker
 	CommitHash = "n/a"
