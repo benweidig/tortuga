@@ -3,7 +3,6 @@ package repo
 import (
 	"bufio"
 	"bytes"
-	"strings"
 )
 
 // Changes represents the differences between the index file and the current HEAD commit
@@ -35,21 +34,24 @@ func NewChanges(stdOut bytes.Buffer) Changes {
 
 	for scanner.Scan() {
 		row := scanner.Text()
-
-		switch {
-		case strings.HasPrefix(row, " M "):
+		if len(row) < 3 {
+			continue
+		}
+		prefix := string(row[0:3])
+		switch prefix {
+		case " M ":
 			c.Modified++
-		case strings.HasPrefix(row, " A "):
+		case " A ":
 			c.Added++
-		case strings.HasPrefix(row, " D "):
+		case " D ":
 			c.Deleted++
-		case strings.HasPrefix(row, " R "):
+		case " R ":
 			c.Renamed++
-		case strings.HasPrefix(row, " C "):
+		case " C ":
 			c.Copied++
-		case strings.HasPrefix(row, " U "):
+		case " U ":
 			c.UpdatedUnmerged++
-		case strings.HasPrefix(row, "?? "):
+		case "?? ":
 			c.Unversioned++
 		}
 	}

@@ -24,7 +24,7 @@ func isNoUpstreamError(stdErr string) bool {
 }
 
 // ConcretizeError parses the stdErr output to build a more meaningful error than what came back from git
-func ConcretizeError(err error, stdErr bytes.Buffer) error {
+func concretizeError(err error, stdErr bytes.Buffer) error {
 	if err == nil {
 		return err
 	}

@@ -2,23 +2,24 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/benweidig/tortuga/git"
 	"github.com/benweidig/tortuga/repo"
+	"github.com/benweidig/tortuga/ui"
+
 	"github.com/fatih/color"
-	"github.com/gosuri/uilive"
-	clitable "gopkg.in/benweidig/cli-table.v2"
 )
 
-func renderCurrentStatus(w *uilive.Writer, repos []*repo.Repository) {
-	table := clitable.New()
-	table.AddRow("PROJECT", "BRANCH", "STATUS")
+func writeCurrentStatus(w io.Writer, repos []*repo.Repository) {
+	columnizer := ui.NewColumnizer()
+	columnizer.AddRow("REPOSITORY", "BRANCH", "STATUS")
 
 	for _, r := range repos {
 		var status string
 		switch r.State {
-		case repo.StateUpdated:
+		case repo.StateChangesUpdated:
 			var statusParts []string
 			if r.LocalChanges.Total == 0 {
 				statusParts = append(statusParts, color.GreenString("%d*", r.LocalChanges.Total))
@@ -33,6 +34,7 @@ func renderCurrentStatus(w *uilive.Writer, repos []*repo.Repository) {
 				statusParts = append(statusParts, color.YellowString("%d↑", r.Outgoing))
 			}
 			status = strings.Join(statusParts, " ")
+
 		case repo.StateError:
 			switch r.Error {
 			case git.ErrorAuthentication:
@@ -45,17 +47,15 @@ func renderCurrentStatus(w *uilive.Writer, repos []*repo.Repository) {
 		default:
 			status = "..."
 		}
-		table.AddRow(color.WhiteString(r.Name), color.WhiteString(r.Branch), status)
+		columnizer.AddRow(color.WhiteString(r.Name), color.WhiteString(r.Branch), status)
 	}
 
-	fmt.Fprintln(w, table)
-
-	w.Flush()
+	fmt.Fprintln(w, columnizer)
 }
 
-func renderActionsTaken(w *uilive.Writer, repos []*repo.Repository) {
-	table := clitable.New()
-	table.AddRow("PROJECT", "BRANCH", "ACTIONS")
+func writeActionsTaken(w io.Writer, repos []*repo.Repository) {
+	columnizer := ui.NewColumnizer()
+	columnizer.AddRow("PROJECT", "BRANCH", "ACTIONS")
 
 	for _, r := range repos {
 		var status string
@@ -80,10 +80,8 @@ func renderActionsTaken(w *uilive.Writer, repos []*repo.Repository) {
 		default:
 			status = "..."
 		}
-		table.AddRow(color.New(color.FgWhite).Sprint(r.Name), color.New(color.FgWhite).Sprint(r.Branch), color.New(color.FgWhite).Sprint(status))
+		columnizer.AddRow(color.New(color.FgWhite).Sprint(r.Name), color.New(color.FgWhite).Sprint(r.Branch), color.New(color.FgWhite).Sprint(status))
 	}
 
-	fmt.Fprintln(w, table)
-
-	w.Flush()
+	fmt.Fprintln(w, columnizer)
 }

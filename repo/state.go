@@ -7,8 +7,9 @@ const (
 	// StateNone is the initial state
 	StateNone State = iota
 
-	// StateUpdated means the Repository was updated and has local changes and Incoming/Outgoung count set
-	StateUpdated
+	// StateChangesUpdated means the Repository was fetched from upstream (if not local-mode)
+	// and has local changes and Incoming/Outgoung count set
+	StateChangesUpdated
 
 	// StateSynced means the Repository was synced (even when no sync was needed it enters this State)
 	StateSynced

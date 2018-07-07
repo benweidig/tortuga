@@ -1,17 +1,19 @@
 package main
 
 import (
-	"log"
-	"os/exec"
+	"fmt"
+	"os"
 
 	"github.com/benweidig/tortuga/cmd"
+	"github.com/benweidig/tortuga/git"
 )
 
 func main() {
-	// Without git nothing works so check and exit and necessary
-	_, err := exec.LookPath("git")
+
+	err := git.CheckForGit()
 	if err != nil {
-		log.Fatalln("Command 'git' not found!")
+		fmt.Fprintln(os.Stderr, "git not found.")
+		os.Exit(1)
 	}
 
 	cmd.RootCmd.Execute()

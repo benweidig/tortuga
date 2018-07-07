@@ -1,18 +1,18 @@
 package cmd
 
 import (
+	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"sync"
 
-	"fmt"
-
+	"github.com/benweidig/tortuga/git"
 	"github.com/benweidig/tortuga/repo"
+	"github.com/benweidig/tortuga/ui"
 	"github.com/benweidig/tortuga/version"
+
 	"github.com/fatih/color"
-	"github.com/gosuri/uilive"
 	"github.com/spf13/cobra"
 )
 
@@ -36,10 +36,13 @@ var RootCmd = &cobra.Command{
 func init() {
 	RootCmd.Flags().BoolVarP(&localOnlyArg, "local-only", "l", false, "Local mode, don't fetch remotes")
 	RootCmd.Flags().BoolVarP(&monochromeArg, "monochrome", "m", false, "Monochrome output, no ANSI colorize")
-	RootCmd.Flags().BoolVarP(&yesArg, "yes", "y", false, "Prompt yes to Stash/Pull/Rebase/Push")
+	RootCmd.Flags().BoolVarP(&yesArg, "yes", "y", false, "Anwser 'Yes' to 'Stash/Pull/Rebase/Push' prompt")
 }
 
 func runCommand(_ *cobra.Command, args []string) {
+
+	// Step 1: Parse arguments and prepare requirements
+
 	// Determinate the directory to check.
 	var basePath string
 
@@ -50,43 +53,50 @@ func runCommand(_ *cobra.Command, args []string) {
 		// Falback to actual working directory
 		wd, err := os.Getwd()
 		if err != nil {
-			log.Fatal("Couldn't retrieve working directory. " + err.Error())
+			fmt.Fprintf(os.Stderr, "Couldn't retrieve working directory: '%s'.\n", err)
+			os.Exit(1)
 		}
 		basePath = wd
 	}
 
-	// Disable colors if requested. Don't set it directly, the color library tries to check if
-	// the terminal actual supports colors beforehand and disables it.
+	// Disable colors if requested either via arg or env, see http://no-color.org/.
+	// The color library might disable color nontheless if it thinks the terminal isn't
+	// supporting it.
+	_, noColorEnvExists := os.LookupEnv("NO_COLOR")
+	monochromeArg = monochromeArg || noColorEnvExists
 	if monochromeArg {
 		color.NoColor = true
 	}
+
+	// Step 2: Find and Update the repositoriers
 
 	repos := findAndUpdate(basePath)
 
 	// If no remote actions are supposed to be done we need to end here
 	if localOnlyArg {
-		fmt.Println("Local only, exiting...")
 		os.Exit(0)
 	}
 
 	// Check if we actual can do any work at all
 	atLeastOneDirty := false
 	for _, r := range repos {
-		if r.Incoming > 0 || r.Outgoing > 0 {
+		if r.IsDirty() {
 			atLeastOneDirty = true
 			break
 		}
 	}
 	if atLeastOneDirty == false {
-		fmt.Println("No work can be done, exiting...")
 		os.Exit(0)
 	}
 
+	// Step 3: Ask if we should up
+
 	// There's is work to do, ask if we should
 	if yesArg == false {
-		answer, err := askQuestionYN("Stash/Pull/Rebase/Push?")
+		answer, err := ui.PromptYesNo("Stash/Pull/Rebase/Push?")
 		if err != nil {
-			log.Fatal(err)
+			fmt.Fprintf(os.Stderr, "Couldn't get prompt answer: '%s'.\n", err)
+			os.Exit(1)
 		}
 		if answer == false {
 			os.Exit(0)
@@ -104,20 +114,22 @@ func findAndUpdate(basePath string) []*repo.Repository {
 	// 1. Find all available repositories
 	repos, err := findRepos(basePath)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintf(os.Stderr, "An error occured: '%s'.\n", err)
+		os.Exit(1)
 	}
 
 	// 2. We need at least one repository
 	if len(repos) == 0 {
-		log.Fatalf("No repositories found at '%s'", basePath)
+		fmt.Fprintf(os.Stderr, "No repositories found at '%s'.\n", basePath)
+		os.Exit(1)
 	}
 
 	// 3. Start live writer and render the repositories
-	w := uilive.New()
-	w.Start()
+	w := ui.NewStdoutWriter()
 
 	// 4. Initial output showing all repos
-	renderCurrentStatus(w, repos)
+	writeCurrentStatus(w, repos)
+	w.Flush()
 
 	// 5. Start a waitgroup
 	var wg sync.WaitGroup
@@ -127,26 +139,22 @@ func findAndUpdate(basePath string) []*repo.Repository {
 	for idx := range repos {
 		r := repos[idx]
 		go func() {
-			defer wg.Done()
-			r.Update(localOnlyArg)
-			renderCurrentStatus(w, repos)
+			r.UpdateChanges(localOnlyArg)
+			writeCurrentStatus(w, repos)
+			w.Flush()
+			wg.Done()
 		}()
 	}
 
 	// 7. Wait for all goroutines to finish
 	wg.Wait()
 
-	// 8. We're done, stop live-writer
-	w.Stop()
-
 	return repos
 }
 
 func syncRepositories(repos []*repo.Repository) {
 	// 1. Separate repos by safely doable and not so safe
-	var syncableRepos []*repo.Repository
-	var safeRepos []*repo.Repository
-	var unsafeRepos []*repo.Repository
+	var syncable, safe, unsafe []*repo.Repository
 
 	for idx := range repos {
 		r := repos[idx]
@@ -167,11 +175,11 @@ func syncRepositories(repos []*repo.Repository) {
 			// Unsafe means there's a possibility for conflicts due to a merge/rebase or stashing/unstashing
 			// the current work tree state
 			if (r.Outgoing == 0 && r.LocalChanges.Stashable == 0) || (r.Incoming == 0 && r.Outgoing > 0) {
-				safeRepos = append(safeRepos, r)
+				safe = append(safe, r)
 			} else {
-				unsafeRepos = append(unsafeRepos, r)
+				unsafe = append(unsafe, r)
 			}
-			syncableRepos = append(syncableRepos, r)
+			syncable = append(syncable, r)
 
 		} else {
 			r.State = repo.StateSynced
@@ -179,46 +187,45 @@ func syncRepositories(repos []*repo.Repository) {
 	}
 
 	// 2. Start live writer and render the repositories
-	w := uilive.New()
-	w.Start()
+	w := ui.NewStdoutWriter()
 
-	renderActionsTaken(w, syncableRepos)
+	writeActionsTaken(w, syncable)
+	w.Flush()
 
 	// 3. Do work for safe repositories first
 	var wg sync.WaitGroup
-	if len(safeRepos) > 0 {
-		wg.Add(len(safeRepos))
+	if len(safe) > 0 {
+		wg.Add(len(safe))
 
-		for idx := range safeRepos {
-			r := safeRepos[idx]
+		for idx := range safe {
+			r := safe[idx]
 
 			go func() {
-				defer wg.Done()
 				err := r.Sync()
 				if err != nil {
 					// Ignore error, it will be displayed
 				}
 
-				renderActionsTaken(w, syncableRepos)
+				writeActionsTaken(w, syncable)
+				w.Flush()
+				wg.Done()
 			}()
 		}
 		wg.Wait()
 	}
 
 	// 4. Do the unsafe repositories in sync fashion
-	for idx := range unsafeRepos {
-		r := unsafeRepos[idx]
+	for idx := range unsafe {
+		r := unsafe[idx]
 
 		err := r.Sync()
 		if err != nil {
 			// Ignore error, it will be displayed
 		}
 
-		renderActionsTaken(w, syncableRepos)
+		writeActionsTaken(w, syncable)
+		w.Flush()
 	}
-
-	// 5. We're done, stop live-writer
-	w.Stop()
 }
 
 func findRepos(basePath string) ([]*repo.Repository, error) {
@@ -237,12 +244,7 @@ func findRepos(basePath string) ([]*repo.Repository, error) {
 
 		// Build paths and check if we got .git directory
 		entryPath := path.Join(basePath, entry.Name())
-		gitPath := path.Join(entryPath, ".git")
-		stat, err := os.Stat(gitPath)
-		if err != nil {
-			continue
-		}
-		if stat.IsDir() == false {
+		if git.IsPossiblyRepo(entryPath) == false {
 			continue
 		}
 

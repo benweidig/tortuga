@@ -1,7 +1,6 @@
 package repo
 
 import (
-	"fmt"
 	"path"
 	"strings"
 
@@ -53,9 +52,9 @@ func (r *Repository) registerError(err error) {
 	r.Error = err
 }
 
-// Update gets and sets the current changes and number of incoming/outgoing of a Repository.
+// UpdateChanges gets and sets the current changes and number of incoming/outgoing of a Repository.
 // If localOnly is true no fetching fo the remote will occur.
-func (r *Repository) Update(localOnly bool) error {
+func (r *Repository) UpdateChanges(localOnly bool) error {
 	if r.State == StateError {
 		return nil
 	}
@@ -77,21 +76,21 @@ func (r *Repository) Update(localOnly bool) error {
 
 	r.LocalChanges = NewChanges(status)
 
-	incoming, err := git.CommitsCount(r.path, fmt.Sprintf("HEAD..%s@{upstream}", r.Branch))
+	incoming, err := git.Incoming(r.path, r.Branch)
 	if err != nil {
 		r.registerError(err)
 		return err
 	}
 	r.Incoming = incoming
 
-	outgoing, err := git.CommitsCount(r.path, fmt.Sprintf("%s@{push}..HEAD", r.Branch))
+	outgoing, err := git.Outgoing(r.path, r.Branch)
 	if err != nil {
 		r.registerError(err)
 		return err
 	}
 	r.Outgoing = outgoing
 
-	r.State = StateUpdated
+	r.State = StateChangesUpdated
 
 	return nil
 }
@@ -137,4 +136,8 @@ func (r *Repository) Sync() error {
 	r.State = StateSynced
 
 	return nil
+}
+
+func (r *Repository) IsDirty() bool {
+	return r.Incoming > 0 || r.Outgoing > 0
 }
