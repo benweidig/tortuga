@@ -16,7 +16,7 @@ LDFLAGS_RELEASE := -ldflags "-X '${REPO}/version.Version=${VERSION}' -X '${REPO}
 
 
 .PHONY: all
-all: clean fmt deps lint test build
+all: clean fmt lint test build
 
 
 .PHONY: clean
@@ -39,16 +39,6 @@ fmt:
 	# ################################################################################
 	#
 	go fmt
-
-
-.PHONY: deps
-deps:
-	#
-	# ################################################################################
-	# >>> TARGET: deps
-	# ################################################################################
-	#
-	go get -t -v ./...
 
 
 .PHONY: lint
@@ -116,7 +106,7 @@ prepare-release:
 
 
 .PHONY: release
-release: clean fmt deps lint test prepare-release release-darwin release-linux release-windows
+release: clean fmt lint test prepare-release release-darwin release-linux release-windows
 
 
 .PHONY: release-linux
