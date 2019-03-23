@@ -21,13 +21,14 @@ func PromptYesNo(question string) (bool, error) {
 		return false, err
 	}
 
-	sanitizedAnswer := strings.TrimSpace(strings.ToLower(answer))
-	if len(sanitizedAnswer) > 1 {
-		msg := fmt.Sprintf("Invalid option: '%s'", sanitizedAnswer)
+	// Sanitize
+	answer = strings.TrimSpace(strings.ToLower(answer))
+	if len(answer) > 1 {
+		msg := fmt.Sprintf("Invalid option: '%s'", answer)
 		return false, errors.New(msg)
 	}
 
-	if sanitizedAnswer == "y" || sanitizedAnswer == "" {
+	if answer == "y" || answer == "" {
 		return true, nil
 	}
 

@@ -8,19 +8,19 @@ import (
 	"github.com/mattn/go-runewidth"
 )
 
-type Columnizer struct {
+type columnizer struct {
 	rows []*columnizerRow
 	mtx  *sync.RWMutex
 }
 
 // NewColumnizer creates a new table with sensible defaults
-func NewColumnizer() *Columnizer {
-	return &Columnizer{
+func newColumnizer() *columnizer {
+	return &columnizer{
 		mtx: new(sync.RWMutex),
 	}
 }
 
-func (t *Columnizer) AddRow(contents ...string) {
+func (t *columnizer) AddRow(contents ...string) {
 	// We don't want to have a half-build table so we need a lock for updating content
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
@@ -30,7 +30,7 @@ func (t *Columnizer) AddRow(contents ...string) {
 }
 
 // Returns string representation of the table
-func (t *Columnizer) String() string {
+func (t *columnizer) String() string {
 	// We want to make sure the data won't change mid string building
 	t.mtx.RLock()
 	defer t.mtx.RUnlock()

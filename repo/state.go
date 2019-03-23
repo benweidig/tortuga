@@ -4,12 +4,17 @@ package repo
 type State int
 
 const (
-	// StateNone is the initial state
+	// StateNone is the initial state, no actual work is done so far
 	StateNone State = iota
 
-	// StateChangesUpdated means the Repository was fetched from upstream (if not local-mode)
-	// and has local changes and Incoming/Outgoung count set
-	StateChangesUpdated
+	// StateRemoteFetched is after fetching the remote
+	StateRemoteFetched
+
+	// StateNeedsSync means the repository has incoming/outgoing changes
+	StateNeedsSync
+
+	// StateNoSyncNeeded means the repository has no changes to be synced
+	StateNoSyncNeeded
 
 	// StateSynced means the Repository was synced (even when no sync was needed it enters this State)
 	StateSynced

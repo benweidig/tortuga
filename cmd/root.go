@@ -18,9 +18,9 @@ import (
 
 // Arguments of the command
 var (
-	localOnlyArg  bool
 	monochromeArg bool
 	yesArg        bool
+	verboseArg    bool
 )
 
 // RootCmd is the only command, so this is Tortuga
@@ -29,19 +29,21 @@ var RootCmd = &cobra.Command{
 	Use:     "tt",
 	Short:   "Tortuga",
 	Args:    cobra.MaximumNArgs(1),
-	Long:    "CLI tool for fetching/pushing/rebasing multiple git repositories at once",
+	Long:    "CLI tool for fetching/rebasing multiple git repositories at once",
 	Run:     runCommand,
 }
 
 func init() {
-	RootCmd.Flags().BoolVarP(&localOnlyArg, "local-only", "l", false, "Local mode, don't fetch remotes")
 	RootCmd.Flags().BoolVarP(&monochromeArg, "monochrome", "m", false, "Monochrome output, no ANSI colorize")
 	RootCmd.Flags().BoolVarP(&yesArg, "yes", "y", false, "Anwser 'Yes' to 'Stash/Pull/Rebase/Push' prompt")
+	RootCmd.Flags().BoolVarP(&verboseArg, "verbose", "v", false, "Verbose error output")
 }
 
 func runCommand(_ *cobra.Command, args []string) {
 
+	// /////////////////////////////////////////////////////////////////////////
 	// Step 1: Parse arguments and prepare requirements
+	// /////////////////////////////////////////////////////////////////////////
 
 	// Determinate the directory to check.
 	var basePath string
@@ -68,36 +70,53 @@ func runCommand(_ *cobra.Command, args []string) {
 		color.NoColor = true
 	}
 
-	// Step 2: Find and Update the repositoriers
+	// /////////////////////////////////////////////////////////////////////////
+	// Step 2: Find repositories
+	// /////////////////////////////////////////////////////////////////////////
 
-	repos := findAndUpdate(basePath)
+	repos, err := findRepositories(basePath)
 
-	// If no remote actions are supposed to be done we need to end here
-	if localOnlyArg {
-		os.Exit(0)
+	bailOnErrors(err, repos)
+
+	if len(repos) == 0 {
+		fmt.Fprintf(os.Stderr, "No repositories found at '%s'.\n", basePath)
+		os.Exit(1)
 	}
 
-	// Check if we actual can do any work at all
-	atLeastOneDirty := false
+	// /////////////////////////////////////////////////////////////////////////
+	// Step 3: Update repositories
+	// /////////////////////////////////////////////////////////////////////////
+
+	updateRepositories(repos)
+
+	bailOnErrors(nil, repos)
+
+	// /////////////////////////////////////////////////////////////////////////
+	// Step 4: Check if we can sync at all
+	// /////////////////////////////////////////////////////////////////////////
+
+	atLeastOneSyncNeeded := false
 	for _, r := range repos {
-		if r.IsDirty() {
-			atLeastOneDirty = true
+		if r.NeedsSync() {
+			atLeastOneSyncNeeded = true
 			break
 		}
 	}
-	if atLeastOneDirty == false {
+	if atLeastOneSyncNeeded == false {
 		os.Exit(0)
 	}
 
-	// Step 3: Ask if we should up
+	// /////////////////////////////////////////////////////////////////////////
+	// Step 5a: Ask if you should sync
+	// /////////////////////////////////////////////////////////////////////////
 
-	// There's is work to do, ask if we should
 	if yesArg == false {
-		answer, err := ui.PromptYesNo("Stash/Pull/Rebase/Push?")
+		answer, err := ui.PromptYesNo("Stash/Rebase/Push?")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Couldn't get prompt answer: '%s'.\n", err)
 			os.Exit(1)
 		}
+
 		if answer == false {
 			os.Exit(0)
 		}
@@ -105,135 +124,23 @@ func runCommand(_ *cobra.Command, args []string) {
 
 	fmt.Println()
 
-	syncRepositories(repos)
+	// /////////////////////////////////////////////////////////////////////////
+	// Step 5b: Do the actual sync
+	// /////////////////////////////////////////////////////////////////////////
+
+	syncedRepos := syncRepositories(repos)
+
+	bailOnErrors(nil, syncedRepos)
 
 	fmt.Println()
 }
 
-func findAndUpdate(basePath string) []*repo.Repository {
-	// 1. Find all available repositories
-	repos, err := findRepos(basePath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "An error occured: '%s'.\n", err)
-		os.Exit(1)
-	}
-
-	// 2. We need at least one repository
-	if len(repos) == 0 {
-		fmt.Fprintf(os.Stderr, "No repositories found at '%s'.\n", basePath)
-		os.Exit(1)
-	}
-
-	// 3. Start live writer and render the repositories
-	w := ui.NewStdoutWriter()
-
-	// 4. Initial output showing all repos
-	writeCurrentStatus(w, repos)
-	w.Flush()
-
-	// 5. Start a waitgroup
-	var wg sync.WaitGroup
-	wg.Add(len(repos))
-
-	// 6. Iterate over the repos and parallel check/update the repos and update the output
-	for idx := range repos {
-		r := repos[idx]
-		go func() {
-			r.UpdateChanges(localOnlyArg)
-			writeCurrentStatus(w, repos)
-			w.Flush()
-			wg.Done()
-		}()
-	}
-
-	// 7. Wait for all goroutines to finish
-	wg.Wait()
-
-	return repos
-}
-
-func syncRepositories(repos []*repo.Repository) {
-	// 1. Separate repos by safely doable and not so safe
-	var syncable, safe, unsafe []*repo.Repository
-
-	for idx := range repos {
-		r := repos[idx]
-
-		// No need to check an unsafe repository
-		if r.State == repo.StateError {
-			continue
-		}
-
-		// The refs are different, so we need to do some work.
-		if r.Incoming > 0 || r.Outgoing > 0 {
-			// We separate the repos to 2 categories: safe and unsafe.
-			//
-			// Possible states for a repository to be considered safe:
-			// - no outgoing changesets and nothing to stash -> Only incoming changes
-			// - Outgoing changes without incoming
-			//
-			// Unsafe means there's a possibility for conflicts due to a merge/rebase or stashing/unstashing
-			// the current work tree state
-			if (r.Outgoing == 0 && r.LocalChanges.Stashable == 0) || (r.Incoming == 0 && r.Outgoing > 0) {
-				safe = append(safe, r)
-			} else {
-				unsafe = append(unsafe, r)
-			}
-			syncable = append(syncable, r)
-
-		} else {
-			r.State = repo.StateSynced
-		}
-	}
-
-	// 2. Start live writer and render the repositories
-	w := ui.NewStdoutWriter()
-
-	writeActionsTaken(w, syncable)
-	w.Flush()
-
-	// 3. Do work for safe repositories first
-	var wg sync.WaitGroup
-	if len(safe) > 0 {
-		wg.Add(len(safe))
-
-		for idx := range safe {
-			r := safe[idx]
-
-			go func() {
-				err := r.Sync()
-				if err != nil {
-					// Ignore error, it will be displayed
-				}
-
-				writeActionsTaken(w, syncable)
-				w.Flush()
-				wg.Done()
-			}()
-		}
-		wg.Wait()
-	}
-
-	// 4. Do the unsafe repositories in sync fashion
-	for idx := range unsafe {
-		r := unsafe[idx]
-
-		err := r.Sync()
-		if err != nil {
-			// Ignore error, it will be displayed
-		}
-
-		writeActionsTaken(w, syncable)
-		w.Flush()
-	}
-}
-
-func findRepos(basePath string) ([]*repo.Repository, error) {
+func findRepositories(basePath string) ([]*repo.Repository, error) {
 	var repos []*repo.Repository
 
 	entries, err := ioutil.ReadDir(basePath)
 	if err != nil {
-		return repos, nil
+		return repos, err
 	}
 
 	for _, entry := range entries {
@@ -254,4 +161,112 @@ func findRepos(basePath string) ([]*repo.Repository, error) {
 	}
 
 	return repos, nil
+}
+
+func updateRepositories(repos []*repo.Repository) {
+	// 1. Start live writer and render the repositories
+	w := ui.NewStdoutWriter()
+
+	// 2. Initial output showing all repos
+	ui.WriteRepositoryStatus(w, repos)
+	w.Flush()
+
+	// 3. Start a waitgroup
+	var wg sync.WaitGroup
+	wg.Add(len(repos))
+
+	// 4. Iterate over the repos and parallel check/update the repos and update the output
+	for idx := range repos {
+		r := repos[idx]
+		go func() {
+			r.Update()
+			ui.WriteRepositoryStatus(w, repos)
+			w.Flush()
+			wg.Done()
+		}()
+	}
+
+	// 5. Wait for all goroutines to finish
+	wg.Wait()
+}
+
+func syncRepositories(repos []*repo.Repository) []*repo.Repository {
+	// 1. Find the repos that are needed to by synced
+	var syncable []*repo.Repository
+
+	for idx := range repos {
+		r := repos[idx]
+
+		// No need to check an unsafe repository
+		if r.State == repo.StateError {
+			continue
+		}
+
+		if r.NeedsSync() {
+			r.State = repo.StateNeedsSync
+			syncable = append(syncable, r)
+		} else {
+			r.State = repo.StateNoSyncNeeded
+		}
+	}
+
+	// 2. Start live writer and render the repositories
+	w := ui.NewStdoutWriter()
+
+	ui.WriteRepositoryStatus(w, syncable)
+	w.Flush()
+
+	// 3. Do the work async for better speed
+	if len(syncable) > 0 {
+		var wg sync.WaitGroup
+		wg.Add(len(syncable))
+
+		for idx := range syncable {
+			r := syncable[idx]
+
+			go func() {
+				r.Sync()
+				ui.WriteRepositoryStatus(w, syncable)
+				w.Flush()
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+	}
+
+	return syncable
+}
+
+func bailOnErrors(err error, repos []*repo.Repository) {
+	var shouldExit bool
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "An error occured:", err)
+		shouldExit = true
+	}
+
+	for _, r := range repos {
+		if r.State != repo.StateError {
+			continue
+		}
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintf(os.Stderr, "%s/%s:\n", r.Name, r.Branch)
+		ge, ok := r.Error.(*git.ExternalError)
+		if ok {
+			fmt.Fprintln(os.Stderr, ge.Cause.Error())
+			if verboseArg {
+				fmt.Fprintln(os.Stderr, "Git stdout:", ge.StdOut)
+				fmt.Fprintln(os.Stderr, "Git stderr:", ge.StdErr)
+			}
+		} else {
+			fmt.Fprintln(os.Stderr, r.Error.Error())
+		}
+
+		shouldExit = true
+	}
+
+	if shouldExit {
+		fmt.Fprintln(os.Stderr)
+		os.Exit(1)
+	}
 }

@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"bufio"
 	"path"
 	"strings"
 
@@ -11,14 +12,16 @@ import (
 type Repository struct {
 	path string
 
-	Name         string
-	Branch       string
-	Remote       string
-	LocalChanges Changes
-	Incoming     int
-	Outgoing     int
-	State        State
-	Error        error
+	Name        string
+	Branch      string
+	Remote      string
+	Changes     int
+	stashed     bool
+	Unversioned int
+	Incoming    int
+	Outgoing    int
+	State       State
+	Error       error
 }
 
 // NewRepository creates a bare Repository construct containing the minimum for initial display
@@ -31,15 +34,14 @@ func NewRepository(repoPath string) (*Repository, error) {
 
 	branch, err := git.LocalBranch(r.path)
 	if err != nil {
-		r.registerError(err)
-		r.Branch = "???"
+		r.withError(err).Branch = "???"
 		return r, err
 	}
 	r.Branch = branch
 
 	upstreamBranch, err := git.UpstreamBranch(r.path)
 	if err != nil {
-		r.registerError(err)
+		r.withError(err)
 		return r, err
 	}
 	r.Remote = strings.Split(upstreamBranch, "/")[0]
@@ -47,89 +49,112 @@ func NewRepository(repoPath string) (*Repository, error) {
 	return r, nil
 }
 
-func (r *Repository) registerError(err error) {
+func (r *Repository) withError(err error) *Repository {
+	if err == nil {
+		return nil
+	}
 	r.State = StateError
 	r.Error = err
+	return r
 }
 
-// UpdateChanges gets and sets the current changes and number of incoming/outgoing of a Repository.
-// If localOnly is true no fetching fo the remote will occur.
-func (r *Repository) UpdateChanges(localOnly bool) error {
+// Update analyzes the current working tree and fetches remote changes
+func (r *Repository) Update() error {
 	if r.State == StateError {
 		return nil
 	}
+	status, err := git.Status(r.path)
+	if err != nil {
+		return r.withError(err).Error
+	}
+	scanner := bufio.NewScanner(&status)
 
-	if localOnly == false {
-		err := git.Fetch(r.path, r.Remote)
-		if err != nil {
-			r.registerError(err)
-			return err
+	for scanner.Scan() {
+		row := scanner.Text()
+		if len(row) < 3 {
+			continue
+		}
+		prefix := string(row[0:3])
+
+		switch strings.TrimSpace(prefix) {
+		case "M":
+			r.Changes++
+		case "A":
+			r.Changes++
+		case "D":
+			r.Changes++
+		case "R":
+			r.Changes++
+		case "C":
+			r.Changes++
+		case "U":
+			r.Changes++
+		case "??":
+			r.Unversioned++
 		}
 	}
 
-	status, err := git.Status(r.path)
+	err = git.Fetch(r.path, r.Remote)
 	if err != nil {
-		r.State = StateError
-		r.Error = err
-		return err
+		return r.withError(err).Error
 	}
-
-	r.LocalChanges = NewChanges(status)
 
 	incoming, err := git.Incoming(r.path, r.Branch)
 	if err != nil {
-		r.registerError(err)
-		return err
+		return r.withError(err).Error
 	}
 	r.Incoming = incoming
 
 	outgoing, err := git.Outgoing(r.path, r.Branch)
 	if err != nil {
-		r.registerError(err)
-		return err
+		return r.withError(err).Error
 	}
 	r.Outgoing = outgoing
 
-	r.State = StateChangesUpdated
+	r.State = StateRemoteFetched
 
 	return nil
 }
 
 // Sync stashes, rebases, pushs and unstashes the Repository
 func (r *Repository) Sync() error {
-	if r.State >= StateError {
+	if r.State == StateError {
 		return nil
 	}
 
-	if r.LocalChanges.Stashable > 0 {
+	errorReturn := func(err error) error {
+		if r.stashed {
+			git.StashPop(r.path)
+		}
+		return r.withError(err).Error
+	}
+
+	if r.Changes > 0 {
 		err := git.Stash(r.path)
 		if err != nil {
-			r.registerError(err)
-			return err
+			return errorReturn(err)
 		}
+		r.stashed = true
 	}
 
 	if r.Incoming > 0 {
 		err := git.Rebase(r.path)
 		if err != nil {
-			r.registerError(err)
-			return err
+			return errorReturn(err)
 		}
 	}
 
 	if r.Outgoing > 0 {
 		err := git.Push(r.path)
 		if err != nil {
-			r.registerError(err)
-			return err
+			return errorReturn(err)
 		}
 	}
 
-	if r.LocalChanges.Stashable > 0 {
+	if r.stashed {
 		err := git.StashPop(r.path)
 		if err != nil {
-			r.registerError(err)
-			return err
+			return r.withError(err).Error
 		}
 	}
 
@@ -138,6 +163,7 @@ func (r *Repository) Sync() error {
 	return nil
 }
 
-func (r *Repository) IsDirty() bool {
+// NeedsSync returns true if there are any changes that needs to be synced
+func (r *Repository) NeedsSync() bool {
 	return r.Incoming > 0 || r.Outgoing > 0
 }

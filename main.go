@@ -9,8 +9,7 @@ import (
 )
 
 func main() {
-
-	err := git.CheckForGit()
+	err := git.IsAvailable()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "git not found.")
 		os.Exit(1)
