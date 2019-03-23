@@ -16,16 +16,16 @@ You can either build from source, use the .deb-files, or on macOS just use homeb
 
 ## Usage
 ```
-tt [-l/--local-only] [-m/--monochrome] [-y/--yes] [<path>]
+tt [-m/--monochrome] [-y/--yes] [-v/--verbose] [<path>]
 ```
 
 ## Arguments
 
 | Argument          | Default | Description                        |
 | ----------------- | ------- | ---------------------------------- |
-| -l / --local-only | false   | Don't update remotes               |
 | -m / --monochrome | false   | Don't use ANSI colors              |
 | -y / --yes        | false   | Automatically _yes_ any question   |
+| -v / --verbose    | false   | Verbose error output               |
 | path              | .       | Path containing your repositories  |
 
 ANSI colors might be disabled automatically if the terminal doesn't seem to support it, but the detection is not perfect.
