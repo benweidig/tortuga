@@ -16,7 +16,7 @@ LDFLAGS_RELEASE := -ldflags "-X '${REPO}/version.Version=${VERSION}' -X '${REPO}
 
 
 .PHONY: all
-all: clean fmt lint test build
+all: clean fmt lint build test
 
 
 .PHONY: clean
