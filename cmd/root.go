@@ -138,6 +138,15 @@ func runCommand(_ *cobra.Command, args []string) {
 func findRepositories(basePath string) ([]*repo.Repository, error) {
 	var repos []*repo.Repository
 
+	if git.IsPossiblyRepo(basePath) {
+		r, err := repo.NewRepository(basePath)
+		if err != nil {
+			return repos, err
+		}
+		repos = append(repos, r)
+		return repos, err
+	}
+
 	entries, err := ioutil.ReadDir(basePath)
 	if err != nil {
 		return repos, err
