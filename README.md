@@ -19,6 +19,8 @@ You can either build from source, use the .deb-files, or on macOS just use homeb
 tt [-m/--monochrome] [-y/--yes] [-v/--verbose] [<path>]
 ```
 
+If the current directory is managed by git it will use it directly, if not `tt` will check all the direct sub-folders for repositories.
+
 ## Arguments
 
 | Argument          | Default | Description                        |
