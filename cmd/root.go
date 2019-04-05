@@ -74,9 +74,7 @@ func runCommand(_ *cobra.Command, args []string) {
 	// Step 2: Find repositories
 	// /////////////////////////////////////////////////////////////////////////
 
-	repos, err := findRepositories(basePath)
-
-	bailOnErrors(err, repos)
+	repos, _ := findRepositories(basePath)
 
 	if len(repos) == 0 {
 		fmt.Fprintf(os.Stderr, "No repositories found at '%s'.\n", basePath)
@@ -89,7 +87,7 @@ func runCommand(_ *cobra.Command, args []string) {
 
 	updateRepositories(repos)
 
-	bailOnErrors(nil, repos)
+	printErrors(repos)
 
 	// /////////////////////////////////////////////////////////////////////////
 	// Step 4: Check if we can sync at all
@@ -130,7 +128,7 @@ func runCommand(_ *cobra.Command, args []string) {
 
 	syncedRepos := syncRepositories(repos)
 
-	bailOnErrors(nil, syncedRepos)
+	printErrors(syncedRepos)
 
 	fmt.Println()
 }
@@ -140,9 +138,6 @@ func findRepositories(basePath string) ([]*repo.Repository, error) {
 
 	if git.IsPossiblyRepo(basePath) {
 		r, err := repo.NewRepository(basePath)
-		if err != nil {
-			return repos, err
-		}
 		repos = append(repos, r)
 		return repos, err
 	}
@@ -246,12 +241,16 @@ func syncRepositories(repos []*repo.Repository) []*repo.Repository {
 	return syncable
 }
 
-func bailOnErrors(err error, repos []*repo.Repository) {
-	var shouldExit bool
+func printErrors(repos []*repo.Repository) {
+	errorCount := repo.ErrorCount(repos)
+	if errorCount == 0 {
+		return
+	}
 
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "An error occured:", err)
-		shouldExit = true
+	fmt.Fprintln(os.Stderr, color.RedString("Errors occured: %d", errorCount))
+
+	if verboseArg == false {
+		return
 	}
 
 	for _, r := range repos {
@@ -259,23 +258,12 @@ func bailOnErrors(err error, repos []*repo.Repository) {
 			continue
 		}
 		fmt.Fprintln(os.Stderr)
-		fmt.Fprintf(os.Stderr, "%s/%s:\n", r.Name, r.Branch)
+		fmt.Fprintf(os.Stderr, color.WhiteString("%s/%s:\n", r.Name, r.Branch))
 		ge, ok := r.Error.(*git.ExternalError)
 		if ok {
-			fmt.Fprintln(os.Stderr, ge.Cause.Error())
-			if verboseArg {
-				fmt.Fprintln(os.Stderr, "Git stdout:", ge.StdOut)
-				fmt.Fprintln(os.Stderr, "Git stderr:", ge.StdErr)
-			}
+			fmt.Fprintln(os.Stderr, ge.StdErr)
 		} else {
 			fmt.Fprintln(os.Stderr, r.Error.Error())
 		}
-
-		shouldExit = true
-	}
-
-	if shouldExit {
-		fmt.Fprintln(os.Stderr)
-		os.Exit(1)
 	}
 }

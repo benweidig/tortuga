@@ -167,3 +167,13 @@ func (r *Repository) Sync() error {
 func (r *Repository) NeedsSync() bool {
 	return r.Incoming > 0 || r.Outgoing > 0
 }
+
+func ErrorCount(r []*Repository) int {
+	count := 0
+	for _, repo := range r {
+		if repo.State == StateError {
+			count++
+		}
+	}
+	return count
+}

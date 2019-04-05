@@ -50,9 +50,8 @@ func git(path string, args ...string) (bytes.Buffer, error) {
 	err = cmd.Run()
 
 	if err != nil {
-		err = wrapError(err, outBuffer, errBuffer)
+		err = wrapError(err, errBuffer)
 	}
-
 	return outBuffer, err
 }
 
