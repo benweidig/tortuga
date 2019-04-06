@@ -10,5 +10,5 @@ require (
 	github.com/mattn/go-runewidth v0.0.4
 	github.com/spf13/cobra v0.0.3
 	github.com/spf13/pflag v1.0.3 // indirect
-	golang.org/x/sys v0.0.0-20190322080309-f49334f85ddc // indirect
+	golang.org/x/sys v0.0.0-20190405154228-4b34438f7a67 // indirect
 )
