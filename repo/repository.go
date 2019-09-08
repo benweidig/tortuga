@@ -168,6 +168,7 @@ func (r *Repository) NeedsSync() bool {
 	return r.Incoming > 0 || r.Outgoing > 0
 }
 
+// ErrorCount return the total count of repositories with errors
 func ErrorCount(r []*Repository) int {
 	count := 0
 	for _, repo := range r {

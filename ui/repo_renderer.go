@@ -10,7 +10,7 @@ import (
 	"github.com/fatih/color"
 )
 
-// WriteCurrentStatus writes the current status to the provided Writer
+// WriteRepositoryStatus writes the current status to the provided Writer
 func WriteRepositoryStatus(w io.Writer, repos []*repo.Repository) {
 	columnizer := newColumnizer()
 	columnizer.AddRow("REPOSITORY", "BRANCH", "STATUS")
