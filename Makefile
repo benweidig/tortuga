@@ -48,9 +48,8 @@ lint:
 	# >>> TARGET: lint
 	# ################################################################################
 	#
-	# Removed due to https://github.com/golang/go/issues/26380
-	#go get -u github.com/golang/lint/golint
-	#golint ./...
+	go get -u golang.org/x/lint/golint
+	golint ./...
 
 
 .PHONY: test
