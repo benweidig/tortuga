@@ -2,6 +2,7 @@ package git
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -65,7 +66,11 @@ func LocalBranch(path string) (string, error) {
 	// We have to sanitize the output for easier usage
 	branch := strings.TrimSpace(stdOut.String())
 
-	return branch, nil
+	if branch == "HEAD" {
+		err = errors.New("not on a branch")
+	}
+
+	return branch, err
 }
 
 // UpstreamBranch returns the name of the upstream branch
