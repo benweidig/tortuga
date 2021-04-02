@@ -278,8 +278,8 @@ release-darwin:
 	rm ${BUILD_FOLDER}/${BINARY}
 
 	#
-	# >> DARWIN/AMD64
+	# >> DARWIN/ARM64
 	#
 	GOOS=darwin GOARCH=arm64 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
-	tar --exclude ${VERSION_FOLDER}/deb -czf ${RELEASE_FOLDER}/${VERSION_FOLDER}_darwin_amd64.tar.gz -C ${BASE_BUILD_FOLDER} ${VERSION_FOLDER}
+	tar --exclude ${VERSION_FOLDER}/deb -czf ${RELEASE_FOLDER}/${VERSION_FOLDER}_darwin_arm64.tar.gz -C ${BASE_BUILD_FOLDER} ${VERSION_FOLDER}
 	rm ${BUILD_FOLDER}/${BINARY}
