@@ -108,6 +108,13 @@ prepare-release:
 .PHONY: release
 release: clean fmt lint test prepare-release release-darwin release-linux release-windows
 
+	#
+	# ################################################################################
+	# >>> RELEASE DONE
+	# ################################################################################
+	#
+	@echo "Relase Done! Version: ${VERSION}"
+
 
 .PHONY: release-linux
 release-linux:
@@ -197,6 +204,13 @@ release-linux:
 	GOOS=linux GOARCH=arm go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
 
 	#
+	# >> LINUX/ARM64
+	#
+	# > build binary
+	#
+	GOOS=linux GOARCH=arm64 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
+
+	#
 	# > tar.gz binary
 	#
 	tar --exclude ${VERSION_FOLDER}/deb -czf ${RELEASE_FOLDER}/${VERSION_FOLDER}_linux_arm.tar.gz -C ${BASE_BUILD_FOLDER} ${VERSION_FOLDER}
@@ -257,15 +271,15 @@ release-darwin:
 	# >>> TARGET: release-darwin
 	# ################################################################################
 	#
-	# >>DARWIN/386
+	# >> DARWIN/AMD64
 	#
-	GOOS=darwin GOARCH=386 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
-	tar --exclude ${VERSION_FOLDER}/deb -czf ${RELEASE_FOLDER}/${VERSION_FOLDER}_darwin_386.tar.gz -C ${BASE_BUILD_FOLDER} ${VERSION_FOLDER}
+	GOOS=darwin GOARCH=amd64 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
+	tar --exclude ${VERSION_FOLDER}/deb -czf ${RELEASE_FOLDER}/${VERSION_FOLDER}_darwin_amd64.tar.gz -C ${BASE_BUILD_FOLDER} ${VERSION_FOLDER}
 	rm ${BUILD_FOLDER}/${BINARY}
 
 	#
 	# >> DARWIN/AMD64
 	#
-	GOOS=darwin GOARCH=amd64 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
+	GOOS=darwin GOARCH=arm64 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
 	tar --exclude ${VERSION_FOLDER}/deb -czf ${RELEASE_FOLDER}/${VERSION_FOLDER}_darwin_amd64.tar.gz -C ${BASE_BUILD_FOLDER} ${VERSION_FOLDER}
 	rm ${BUILD_FOLDER}/${BINARY}
