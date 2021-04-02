@@ -213,7 +213,7 @@ release-linux:
 	#
 	# > tar.gz binary
 	#
-	tar --exclude ${VERSION_FOLDER}/deb -czf ${RELEASE_FOLDER}/${VERSION_FOLDER}_linux_arm.tar.gz -C ${BASE_BUILD_FOLDER} ${VERSION_FOLDER}
+	tar --exclude ${VERSION_FOLDER}/deb -czf ${RELEASE_FOLDER}/${VERSION_FOLDER}_linux_arm64.tar.gz -C ${BASE_BUILD_FOLDER} ${VERSION_FOLDER}
 
 	#
 	# > prepare .deb-file
