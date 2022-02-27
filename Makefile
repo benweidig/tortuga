@@ -48,7 +48,6 @@ lint:
 	# >>> TARGET: lint
 	# ################################################################################
 	#
-	go get -u golang.org/x/lint/golint
 	golint ./...
 
 
@@ -241,10 +240,6 @@ release-linux:
 
 .PHONY: release-windows
 release-windows:
-	# Window has some dependencies that won't be available by the usual way, so we
-	# need to get them here
-	go get -u github.com/inconshreveable/mousetrap
-	go get -u github.com/mattn/go-isatty
 	#
 	# ################################################################################
 	# >>> TARGET: release-windows
