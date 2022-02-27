@@ -127,9 +127,6 @@ release-linux:
 	# >> PREPARE .deb-file
 	#
 	mkdir -p ${BUILD_FOLDER}/deb/usr/bin/ ${BUILD_FOLDER}/deb/DEBIAN/
-	cp -rf deb-control-template ${BUILD_FOLDER}/deb/DEBIAN/control
-	sed -i 's/PKG_NAME/${PROJECT}/g' ${BUILD_FOLDER}/deb/DEBIAN/control
-	sed -i 's/PKG_VERSION/${VERSION}/g' ${BUILD_FOLDER}/deb/DEBIAN/control
 
 	#
 	# >> LINUX/386
@@ -147,10 +144,7 @@ release-linux:
 	# > prepare .deb-file
 	#
 	cp ${BUILD_FOLDER}/${BINARY} ${BUILD_FOLDER}/deb/usr/bin/
-	cp -rf deb-control-template ${BUILD_FOLDER}/deb/DEBIAN/control
-	sed -i 's/PKG_NAME/${PROJECT}/g' ${BUILD_FOLDER}/deb/DEBIAN/control
-	sed -i 's/PKG_VERSION/${VERSION}/g' ${BUILD_FOLDER}/deb/DEBIAN/control
-	sed -i 's/ARCH/i386/g' ${BUILD_FOLDER}/deb/DEBIAN/control
+	sed 's/PKG_NAME/${PROJECT}/g; s/PKG_VERSION/${VERSION}/g; s/ARCH/i386/g' deb-control-template > ${BUILD_FOLDER}/deb/DEBIAN/control
 
 	#
 	# > build .deb-file
@@ -179,10 +173,7 @@ release-linux:
 	# > prepare .deb-file
 	#
 	cp ${BUILD_FOLDER}/${BINARY} ${BUILD_FOLDER}/deb/usr/bin/
-	cp -rf deb-control-template ${BUILD_FOLDER}/deb/DEBIAN/control
-	sed -i 's/PKG_NAME/${PROJECT}/g' ${BUILD_FOLDER}/deb/DEBIAN/control
-	sed -i 's/PKG_VERSION/${VERSION}/g' ${BUILD_FOLDER}/deb/DEBIAN/control
-	sed -i 's/ARCH/amd64/g' ${BUILD_FOLDER}/deb/DEBIAN/control
+	sed 's/PKG_NAME/${PROJECT}/g; s/PKG_VERSION/${VERSION}/g; s/ARCH/amd64/g' deb-control-template > ${BUILD_FOLDER}/deb/DEBIAN/control
 
 	#
 	# > build .deb-file
@@ -194,13 +185,6 @@ release-linux:
 	#
 	rm -f ${BUILD_FOLDER}/${BINARY}
 	rm -f ${BUILD_FOLDER}/deb/DEBIAN/control
-
-	#
-	# >> LINUX/ARM
-	#
-	# > build binary
-	#
-	GOOS=linux GOARCH=arm go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
 
 	#
 	# >> LINUX/ARM64
@@ -218,15 +202,13 @@ release-linux:
 	# > prepare .deb-file
 	#
 	cp ${BUILD_FOLDER}/${BINARY} ${BUILD_FOLDER}/deb/usr/bin/
-	cp -rf deb-control-template ${BUILD_FOLDER}/deb/DEBIAN/control
-	sed -i 's/PKG_NAME/${PROJECT}/g' ${BUILD_FOLDER}/deb/DEBIAN/control
-	sed -i 's/PKG_VERSION/${VERSION}/g' ${BUILD_FOLDER}/deb/DEBIAN/control
-	sed -i 's/ARCH/armhf/g' ${BUILD_FOLDER}/deb/DEBIAN/control
+	sed 's/PKG_NAME/${PROJECT}/g; s/PKG_VERSION/${VERSION}/g; s/ARCH/arm64/g' deb-control-template > ${BUILD_FOLDER}/deb/DEBIAN/control
+
 
 	#
 	# > build .deb-file
 	#
-	dpkg-deb --build ${BUILD_FOLDER}/deb ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_linux_armhf.deb
+	dpkg-deb --build ${BUILD_FOLDER}/deb ${RELEASE_FOLDER}/${PROJECT}-${VERSION}_linux_arm64.deb
 
 	#
 	# > cleanup
