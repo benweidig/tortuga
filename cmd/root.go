@@ -35,7 +35,7 @@ var RootCmd = &cobra.Command{
 
 func init() {
 	RootCmd.Flags().BoolVarP(&monochromeArg, "monochrome", "m", false, "Monochrome output, no ANSI colorize")
-	RootCmd.Flags().BoolVarP(&yesArg, "yes", "y", false, "Anwser 'Yes' to 'Stash/Pull/Rebase/Push' prompt")
+	RootCmd.Flags().BoolVarP(&yesArg, "yes", "y", false, "Anwser 'Yes' to 'push/pull' prompt")
 	RootCmd.Flags().BoolVarP(&verboseArg, "verbose", "v", false, "Verbose error output")
 }
 
@@ -93,14 +93,14 @@ func runCommand(_ *cobra.Command, args []string) {
 	// Step 4: Check if we can sync at all
 	// /////////////////////////////////////////////////////////////////////////
 
-	atLeastOneSyncNeeded := false
+	incoming := 0
+	outgoing := 0
+
 	for _, r := range repos {
-		if r.NeedsSync() {
-			atLeastOneSyncNeeded = true
-			break
-		}
+		incoming += r.Incoming
+		outgoing += r.Outgoing
 	}
-	if atLeastOneSyncNeeded == false {
+	if incoming == 0 && outgoing == 0 {
 		os.Exit(0)
 	}
 
@@ -108,14 +108,24 @@ func runCommand(_ *cobra.Command, args []string) {
 	// Step 5a: Ask if you should sync
 	// /////////////////////////////////////////////////////////////////////////
 
-	if yesArg == false {
-		answer, err := ui.PromptYesNo("Stash/Rebase/Push?")
+	if !yesArg {
+
+		prompt := color.WhiteString("Changes:")
+		if incoming > 0 {
+			prompt += color.YellowString(" %d↓", incoming)
+		}
+
+		if outgoing > 0 {
+			prompt += color.YellowString(" %d↑", outgoing)
+		}
+
+		answer, err := ui.PromptYesNo(prompt)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Couldn't get prompt answer: '%s'.\n", err)
 			os.Exit(1)
 		}
 
-		if answer == false {
+		if !answer {
 			os.Exit(0)
 		}
 	}
@@ -149,13 +159,13 @@ func findRepositories(basePath string) ([]*repo.Repository, error) {
 
 	for _, entry := range entries {
 		// We are only interested in directories
-		if entry.IsDir() == false {
+		if !entry.IsDir() {
 			continue
 		}
 
 		// Build paths and check if we got .git directory
 		entryPath := path.Join(basePath, entry.Name())
-		if git.IsPossiblyRepo(entryPath) == false {
+		if !git.IsPossiblyRepo(entryPath) {
 			continue
 		}
 
@@ -247,9 +257,9 @@ func printErrors(repos []*repo.Repository) {
 		return
 	}
 
-	fmt.Fprintln(os.Stderr, color.RedString("Errors occured: %d", errorCount))
+	fmt.Fprintln(os.Stderr, color.RedString("Errors occured: %d\n", errorCount))
 
-	if verboseArg == false {
+	if !verboseArg {
 		return
 	}
 
@@ -258,7 +268,7 @@ func printErrors(repos []*repo.Repository) {
 			continue
 		}
 		fmt.Fprintln(os.Stderr)
-		fmt.Fprintf(os.Stderr, color.WhiteString("%s/%s:\n", r.Name, r.Branch))
+		fmt.Fprintln(os.Stderr, color.WhiteString("%s/%s:", r.Name, r.Branch))
 		ge, ok := r.Error.(*git.ExternalError)
 		if ok {
 			fmt.Fprintln(os.Stderr, ge.StdErr)
