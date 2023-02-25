@@ -52,7 +52,7 @@ func WriteRepositoryStatus(w io.Writer, repos []*repo.Repository) {
 				if r.Outgoing > 0 {
 					statusParts = append(statusParts, color.GreenString("%d↑", r.Outgoing))
 				}
-				status = strings.Join(statusParts, ", ")
+				status = strings.Join(statusParts, " ")
 			}
 
 		case repo.StateError:
