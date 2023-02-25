@@ -14,7 +14,5 @@ require (
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616 // indirect
-	golang.org/x/sys v0.0.0-20220224120231-95c6836cb0e7 // indirect
-	golang.org/x/tools v0.1.9 // indirect
+	golang.org/x/sys v0.1.0 // indirect
 )
