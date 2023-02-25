@@ -1,4 +1,4 @@
-# Tortuga [![Build Status](https://travis-ci.org/benweidig/tortuga.svg?branch=master)](https://travis-ci.org/benweidig/tortuga)
+# Tortuga
 
 CLI tool for fetching/pushing/rebasing multiple git repositories at once.
 
@@ -8,7 +8,7 @@ CLI tool for fetching/pushing/rebasing multiple git repositories at once.
 
 ## Requirements
 
-The tool won't ask for your git credentials because it checks multiple repositories at once async. You should have the credentials available via git-cerdentials-helper/-cache or it will display _Error_ for repositories it can't authenticate with.
+The tool won't ask for your git credentials because it checks multiple repositories at once async. You should have the credentials available via git-credentials-helper/-cache or it will display _Error_ for repositories it can't authenticate with.
 
 ## Install
 
