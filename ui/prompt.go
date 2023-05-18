@@ -7,13 +7,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/fatih/color"
+	"github.com/jwalton/gchalk"
 )
 
 // PromptYesNo asks the question and defaults to Yes
 func PromptYesNo(question string) (bool, error) {
-	color.New(color.Bold).Print(">>> ")
-	fmt.Printf("%s [Y/n] ", question)
+	fmt.Printf("%s %s [Y/n] ", gchalk.WithWhite().Bold(">>>"), question)
 
 	r := bufio.NewReader(os.Stdin)
 	answer, err := r.ReadString('\n')

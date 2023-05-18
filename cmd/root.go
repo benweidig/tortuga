@@ -11,8 +11,8 @@ import (
 	"github.com/benweidig/tortuga/repo"
 	"github.com/benweidig/tortuga/ui"
 	"github.com/benweidig/tortuga/version"
+	"github.com/jwalton/gchalk"
 
-	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
@@ -67,7 +67,7 @@ func runCommand(_ *cobra.Command, args []string) {
 	_, noColorEnvExists := os.LookupEnv("NO_COLOR")
 	monochromeArg = monochromeArg || noColorEnvExists
 	if monochromeArg {
-		color.NoColor = true
+		gchalk.SetLevel(gchalk.LevelNone)
 	}
 
 	// /////////////////////////////////////////////////////////////////////////
@@ -96,9 +96,14 @@ func runCommand(_ *cobra.Command, args []string) {
 	incoming := 0
 	outgoing := 0
 
+	var syncableRepos []*repo.Repository
+
 	for _, r := range repos {
 		incoming += r.Incoming
 		outgoing += r.Outgoing
+		if r.NeedsSync() {
+			syncableRepos = append(syncableRepos, r)
+		}
 	}
 	if incoming == 0 && outgoing == 0 {
 		os.Exit(0)
@@ -109,14 +114,13 @@ func runCommand(_ *cobra.Command, args []string) {
 	// /////////////////////////////////////////////////////////////////////////
 
 	if !yesArg {
-
-		prompt := color.WhiteString("Changes:")
+		prompt := gchalk.White("Changes:")
 		if incoming > 0 {
-			prompt += color.YellowString(" %d↓", incoming)
+			prompt += gchalk.WithBrightYellow().Sprintf(" %d↓", incoming)
 		}
 
 		if outgoing > 0 {
-			prompt += color.YellowString(" %d↑", outgoing)
+			prompt += gchalk.WithBrightYellow().Sprintf(" %d↑", outgoing)
 		}
 
 		answer, err := ui.PromptYesNo(prompt)
@@ -136,7 +140,7 @@ func runCommand(_ *cobra.Command, args []string) {
 	// Step 5b: Do the actual sync
 	// /////////////////////////////////////////////////////////////////////////
 
-	syncedRepos := syncRepositories(repos)
+	syncedRepos := syncRepositories(syncableRepos)
 
 	printErrors(syncedRepos)
 
@@ -257,7 +261,7 @@ func printErrors(repos []*repo.Repository) {
 		return
 	}
 
-	fmt.Fprintln(os.Stderr, color.RedString("Errors occured: %d\n", errorCount))
+	fmt.Fprintln(os.Stderr, gchalk.WithRed().Sprintf("Errors occured: %d\n", errorCount))
 
 	if !verboseArg {
 		return
@@ -268,7 +272,7 @@ func printErrors(repos []*repo.Repository) {
 			continue
 		}
 		fmt.Fprintln(os.Stderr)
-		fmt.Fprintln(os.Stderr, color.WhiteString("%s/%s:", r.Name, r.Branch))
+		fmt.Fprintln(os.Stderr, gchalk.WithRed().Sprintf("%s/%s:", r.Name, r.Branch))
 		ge, ok := r.Error.(*git.ExternalError)
 		if ok {
 			fmt.Fprintln(os.Stderr, ge.StdErr)

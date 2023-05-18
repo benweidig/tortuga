@@ -7,15 +7,17 @@ import (
 
 	"github.com/benweidig/tortuga/repo"
 
-	"github.com/fatih/color"
+	"github.com/jwalton/gchalk"
 )
 
 // WriteRepositoryStatus writes the current status to the provided Writer
 func WriteRepositoryStatus(w io.Writer, repos []*repo.Repository) {
 	columnizer := newColumnizer()
-	columnizer.AddRow("REPOSITORY", "BRANCH", "STATUS")
+	columnizer.AddRow(gchalk.Blue("REPOSITORY"), gchalk.Blue("BRANCH"), gchalk.Blue("STATUS"))
 
 	for _, r := range repos {
+		var name string
+		var branch string
 		var status string
 		switch r.State {
 
@@ -23,44 +25,57 @@ func WriteRepositoryStatus(w io.Writer, repos []*repo.Repository) {
 			var statusParts []string
 
 			if r.Incoming > 0 {
-				statusParts = append(statusParts, color.YellowString("%d↓", r.Incoming))
+				statusParts = append(statusParts, gchalk.WithBrightYellow().WithBold().Sprintf("%d↓", r.Incoming))
 			}
 			if r.Outgoing > 0 {
-				statusParts = append(statusParts, color.YellowString("%d↑", r.Outgoing))
+				statusParts = append(statusParts, gchalk.WithBrightYellow().WithBold().Sprintf("%d↑", r.Outgoing))
 			}
 
 			if r.Changes > 0 {
-				statusParts = append(statusParts, color.YellowString("%d*", r.Changes))
+				statusParts = append(statusParts, gchalk.WithYellow().Sprintf("%d*", r.Changes))
 			} else {
-				statusParts = append(statusParts, color.GreenString("0*"))
+				statusParts = append(statusParts, gchalk.Green("0*"))
 			}
 
 			if r.Unversioned > 0 {
-				statusParts = append(statusParts, color.YellowString("%d?", r.Unversioned))
+				statusParts = append(statusParts, gchalk.WithYellow().Sprintf("%d?", r.Unversioned))
+			}
+
+			if r.NeedsSync() {
+				name = gchalk.WithWhite().Bold(r.Name)
+				branch = gchalk.WithWhite().Bold(r.Branch)
+			} else {
+				name = gchalk.Gray(r.Name)
+				branch = gchalk.Gray(r.Branch)
 			}
 
 			status = strings.Join(statusParts, " ")
 
 		case repo.StateSynced:
-			if r.Outgoing == 0 && r.Incoming == 0 {
-				status = color.GreenString("Nothing to do")
-			} else {
-				var statusParts []string
-				if r.Incoming > 0 {
-					statusParts = append(statusParts, color.GreenString("%d↓", r.Incoming))
-				}
-				if r.Outgoing > 0 {
-					statusParts = append(statusParts, color.GreenString("%d↑", r.Outgoing))
-				}
-				status = strings.Join(statusParts, " ")
+			var statusParts []string
+			if r.Incoming > 0 {
+				statusParts = append(statusParts, gchalk.WithGreen().Sprintf("%d↓", r.Incoming))
+			}
+			if r.Outgoing > 0 {
+				statusParts = append(statusParts, gchalk.WithGreen().Sprintf("%d↑", r.Outgoing))
 			}
 
+			name = gchalk.White(r.Name)
+			branch = gchalk.White(r.Branch)
+			status = strings.Join(statusParts, " ")
+
 		case repo.StateError:
-			status = color.RedString(r.Error.Error())
+			name = gchalk.Red(r.Name)
+			branch = gchalk.Red(r.Branch)
+			status = gchalk.Red(r.Error.Error())
+
 		default:
-			status = "..."
+			name = gchalk.Gray(r.Name)
+			branch = gchalk.Gray(r.Branch)
+			status = gchalk.Gray("...")
 		}
-		columnizer.AddRow(color.WhiteString(r.Name), color.WhiteString(r.Branch), status)
+
+		columnizer.AddRow(name, branch, status)
 	}
 
 	fmt.Fprintln(w, columnizer)
