@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 	"sync"
 
 	"github.com/benweidig/tortuga/git"
@@ -35,7 +37,7 @@ var RootCmd = &cobra.Command{
 
 func init() {
 	RootCmd.Flags().BoolVarP(&monochromeArg, "monochrome", "m", false, "Monochrome output, no ANSI colorize")
-	RootCmd.Flags().BoolVarP(&yesArg, "yes", "y", false, "Anwser 'Yes' to 'push/pull' prompt")
+	RootCmd.Flags().BoolVarP(&yesArg, "yes", "y", false, "Anwser 'Yes' to 'sync' prompt")
 	RootCmd.Flags().BoolVarP(&verboseArg, "verbose", "v", false, "Verbose error output")
 }
 
@@ -113,24 +115,51 @@ func runCommand(_ *cobra.Command, args []string) {
 	// Step 5a: Ask if you should sync
 	// /////////////////////////////////////////////////////////////////////////
 
+	var syncIncomingOnly bool
+
 	if !yesArg {
-		prompt := gchalk.White("Changes:")
-		if incoming > 0 {
-			prompt += gchalk.WithBrightYellow().Sprintf(" %d↓", incoming)
-		}
+		for {
+			prompt := ""
+			if incoming > 0 {
+				prompt += gchalk.WithBrightYellow().Sprintf(" %d↓", incoming)
+			}
 
-		if outgoing > 0 {
-			prompt += gchalk.WithBrightYellow().Sprintf(" %d↑", outgoing)
-		}
+			if outgoing > 0 {
+				prompt += gchalk.WithBrightYellow().Sprintf(" %d↑", outgoing)
+			}
 
-		answer, err := ui.PromptYesNo(prompt)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Couldn't get prompt answer: '%s'.\n", err)
-			os.Exit(1)
-		}
+			fmt.Printf("%s Sync Changes?%s [Y/n/i/?] ", gchalk.WithWhite().Bold(">>>"), prompt)
 
-		if !answer {
-			os.Exit(0)
+			r := bufio.NewReader(os.Stdin)
+			answer, err := r.ReadString('\n')
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Couldn't get prompt answer: '%s'.\n", err)
+				os.Exit(1)
+			}
+
+			// Sanitize
+			answer = strings.TrimSpace(strings.ToLower(answer))
+			if len(answer) > 1 {
+				fmt.Fprintf(os.Stderr, "Invalid option: '%s'\n\n", answer)
+				continue
+			}
+
+			if answer == "n" {
+				os.Exit(0)
+			} else if answer == "i" {
+				syncIncomingOnly = true
+				break
+			} else if answer == "?" {
+				fmt.Println()
+				fmt.Println(gchalk.Bold("Available options:"))
+				fmt.Printf("  %s = %s", gchalk.Bold("y"), "Full Sync (stash, pull+rebase, push) [default]\n")
+				fmt.Printf("  %s = %s", gchalk.Bold("n"), "No sync at all\n")
+				fmt.Printf("  %s = %s", gchalk.Bold("i"), "Sync incoming only (stash, pull+rebase)\n")
+				fmt.Printf("  %s = %s", gchalk.Bold("?"), "Explain options\n")
+				fmt.Println()
+			} else if answer == "y" || answer == "" {
+				break
+			}
 		}
 	}
 
@@ -140,7 +169,7 @@ func runCommand(_ *cobra.Command, args []string) {
 	// Step 5b: Do the actual sync
 	// /////////////////////////////////////////////////////////////////////////
 
-	syncedRepos := syncRepositories(syncableRepos)
+	syncedRepos := syncRepositories(syncableRepos, syncIncomingOnly)
 
 	printErrors(syncedRepos)
 
@@ -208,7 +237,7 @@ func updateRepositories(repos []*repo.Repository) {
 	wg.Wait()
 }
 
-func syncRepositories(repos []*repo.Repository) []*repo.Repository {
+func syncRepositories(repos []*repo.Repository, incomingOnly bool) []*repo.Repository {
 	// 1. Find the repos that are needed to by synced
 	var syncable []*repo.Repository
 
@@ -243,7 +272,7 @@ func syncRepositories(repos []*repo.Repository) []*repo.Repository {
 			r := syncable[idx]
 
 			go func() {
-				r.Sync()
+				r.Sync(incomingOnly)
 				ui.WriteRepositoryStatus(w, syncable)
 				w.Flush()
 				wg.Done()

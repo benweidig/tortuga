@@ -117,7 +117,7 @@ func (r *Repository) Update() error {
 }
 
 // Sync stashes, rebases, pushs and unstashes the Repository
-func (r *Repository) Sync() error {
+func (r *Repository) Sync(incomingOnly bool) error {
 	if r.State == StateError {
 		return nil
 	}
@@ -144,7 +144,7 @@ func (r *Repository) Sync() error {
 		}
 	}
 
-	if r.Outgoing > 0 {
+	if !incomingOnly && r.Outgoing > 0 {
 		err := git.Push(r.path)
 		if err != nil {
 			return errorReturn(err)
