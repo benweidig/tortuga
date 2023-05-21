@@ -133,7 +133,7 @@ release-linux:
 	#
 	# > build binary
 	#
-	GOOS=linux GOARCH=386 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
+	CGO_ENABLED=0 GOOS=linux GOARCH=386 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
 
 	#
 	# > tar.gz binary
@@ -162,7 +162,7 @@ release-linux:
 	#
 	# > build binary
 	#
-	GOOS=linux GOARCH=amd64 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
 
 	#
 	# > tar.gz binary
@@ -191,7 +191,7 @@ release-linux:
 	#
 	# > build binary
 	#
-	GOOS=linux GOARCH=arm64 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build ${LDFLAGS_RELEASE} -o ${BUILD_FOLDER}/${BINARY}
 
 	#
 	# > tar.gz binary
