@@ -215,7 +215,7 @@ func updateRepositories(repos []*repo.Repository) {
 	w := ui.NewStdoutWriter()
 
 	// 2. Initial output showing all repos
-	ui.WriteRepositoryStatus(w, repos)
+	ui.WriteRepositoryStatus(w, repos, false)
 	w.Flush()
 
 	// 3. Start a waitgroup
@@ -227,7 +227,7 @@ func updateRepositories(repos []*repo.Repository) {
 		r := repos[idx]
 		go func() {
 			r.Update()
-			ui.WriteRepositoryStatus(w, repos)
+			ui.WriteRepositoryStatus(w, repos, false)
 			w.Flush()
 			wg.Done()
 		}()
@@ -260,7 +260,7 @@ func syncRepositories(repos []*repo.Repository, incomingOnly bool) []*repo.Repos
 	// 2. Start live writer and render the repositories
 	w := ui.NewStdoutWriter()
 
-	ui.WriteRepositoryStatus(w, syncable)
+	ui.WriteRepositoryStatus(w, syncable, incomingOnly)
 	w.Flush()
 
 	// 3. Do the work async for better speed
@@ -273,7 +273,7 @@ func syncRepositories(repos []*repo.Repository, incomingOnly bool) []*repo.Repos
 
 			go func() {
 				r.Sync(incomingOnly)
-				ui.WriteRepositoryStatus(w, syncable)
+				ui.WriteRepositoryStatus(w, syncable, incomingOnly)
 				w.Flush()
 				wg.Done()
 			}()

@@ -11,7 +11,7 @@ import (
 )
 
 // WriteRepositoryStatus writes the current status to the provided Writer
-func WriteRepositoryStatus(w io.Writer, repos []*repo.Repository) {
+func WriteRepositoryStatus(w io.Writer, repos []*repo.Repository, incomingOnly bool) {
 	columnizer := newColumnizer()
 	columnizer.AddRow(gchalk.Blue("REPOSITORY"), gchalk.Blue("BRANCH"), gchalk.Blue("STATUS"))
 
@@ -53,15 +53,26 @@ func WriteRepositoryStatus(w io.Writer, repos []*repo.Repository) {
 
 		case repo.StateSynced:
 			var statusParts []string
-			if r.Incoming > 0 {
-				statusParts = append(statusParts, gchalk.WithGreen().Sprintf("%d↓", r.Incoming))
-			}
-			if r.Outgoing > 0 {
-				statusParts = append(statusParts, gchalk.WithGreen().Sprintf("%d↑", r.Outgoing))
+
+			g := gchalk.WithWhite()
+
+			if r.Incoming > 0 || (!incomingOnly && r.Outgoing > 0) {
+				g = g.WithBold()
 			}
 
-			name = gchalk.White(r.Name)
-			branch = gchalk.White(r.Branch)
+			if r.Incoming > 0 {
+				statusParts = append(statusParts, gchalk.WithGreen().WithBold().Sprintf("%d↓", r.Incoming))
+			}
+			if r.Outgoing > 0 {
+				if incomingOnly {
+					statusParts = append(statusParts, gchalk.WithYellow().Sprintf("%d↑", r.Outgoing))
+				} else {
+					statusParts = append(statusParts, gchalk.WithGreen().WithBold().Sprintf("%d↑", r.Outgoing))
+				}
+			}
+
+			name = g.White(r.Name)
+			branch = g.White(r.Branch)
 			status = strings.Join(statusParts, " ")
 
 		case repo.StateError:
