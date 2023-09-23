@@ -1,3 +1,4 @@
+//go:build windows
 // +build windows
 
 package ui
@@ -51,13 +52,18 @@ type fdWriter interface {
 	Fd() uintptr
 }
 
-func (w *StdoutWriter) reset() {
+func (w *StdoutWriter) reset(lineBreaks int) {
+	if lineBreaks == 0 {
+		fmt.Fprintf(os.Stdout, "%c[2K\r", ESCAPE) // clear the line
+		return
+	}
+
 	var writer io.Writer = os.Stdout
 	f, ok := writer.(fdWriter)
 	if ok == false || !isatty.IsTerminal(f.Fd()) {
-		for i := 0; i < w.lineCount; i++ {
-			fmt.Fprintf(os.Stdout, "%c[%dA", ESCAPE, 0) // move the cursor up
+		for i := 0; i < w.lineBreaks; i++ {
 			fmt.Fprintf(os.Stdout, "%c[2K\r", ESCAPE)   // clear the line
+			fmt.Fprintf(os.Stdout, "%c[%dA", ESCAPE, 0) // move the cursor up
 		}
 		return
 	}
@@ -66,7 +72,7 @@ func (w *StdoutWriter) reset() {
 	var csbi consoleScreenBufferInfo
 	procGetConsoleScreenBufferInfo.Call(fd, uintptr(unsafe.Pointer(&csbi)))
 
-	for i := 0; i < w.lineCount; i++ {
+	for i := 0; i < lineBreaks; i++ {
 		// move the cursor up
 		csbi.cursorPosition.y--
 		procSetConsoleCursorPosition.Call(fd, uintptr(*(*int32)(unsafe.Pointer(&csbi.cursorPosition))))

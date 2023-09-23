@@ -3,7 +3,6 @@ package cmd
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"strings"
@@ -22,7 +21,6 @@ import (
 var (
 	monochromeArg bool
 	yesArg        bool
-	verboseArg    bool
 )
 
 // RootCmd is the only command, so this is Tortuga
@@ -38,7 +36,6 @@ var RootCmd = &cobra.Command{
 func init() {
 	RootCmd.Flags().BoolVarP(&monochromeArg, "monochrome", "m", false, "Monochrome output, no ANSI colorize")
 	RootCmd.Flags().BoolVarP(&yesArg, "yes", "y", false, "Anwser 'Yes' to 'sync' prompt")
-	RootCmd.Flags().BoolVarP(&verboseArg, "verbose", "v", false, "Verbose error output")
 }
 
 func runCommand(_ *cobra.Command, args []string) {
@@ -87,9 +84,12 @@ func runCommand(_ *cobra.Command, args []string) {
 	// Step 3: Update repositories
 	// /////////////////////////////////////////////////////////////////////////
 
-	updateRepositories(repos)
+	fmt.Println()
 
-	printErrors(repos)
+	// Start live writer which we will use throughout the rendering
+	w := ui.NewStdoutWriter()
+
+	updateRepositories(repos, w)
 
 	// /////////////////////////////////////////////////////////////////////////
 	// Step 4: Check if we can sync at all
@@ -98,15 +98,11 @@ func runCommand(_ *cobra.Command, args []string) {
 	incoming := 0
 	outgoing := 0
 
-	var syncableRepos []*repo.Repository
-
 	for _, r := range repos {
 		incoming += r.Incoming
 		outgoing += r.Outgoing
-		if r.NeedsSync() {
-			syncableRepos = append(syncableRepos, r)
-		}
 	}
+
 	if incoming == 0 && outgoing == 0 {
 		os.Exit(0)
 	}
@@ -118,7 +114,14 @@ func runCommand(_ *cobra.Command, args []string) {
 	var syncIncomingOnly bool
 
 	if !yesArg {
+
+		// Mark the current position so we can reset properly
+		w.Mark()
+
 		for {
+			// Flush first, or we need to flush after each write
+			w.Flush()
+
 			prompt := ""
 			if incoming > 0 {
 				prompt += gchalk.WithBrightYellow().Sprintf(" %d↓", incoming)
@@ -128,19 +131,23 @@ func runCommand(_ *cobra.Command, args []string) {
 				prompt += gchalk.WithBrightYellow().Sprintf(" %d↑", outgoing)
 			}
 
-			fmt.Printf("%s Sync Changes?%s [Y/n/i/?] ", gchalk.WithWhite().Bold(">>>"), prompt)
+			fmt.Fprintf(w, "%s Sync Changes?%s [Y/n/i/?] ", gchalk.WithWhite().Bold(">>>"), prompt)
+			w.Flush()
 
 			r := bufio.NewReader(os.Stdin)
+
 			answer, err := r.ReadString('\n')
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Couldn't get prompt answer: '%s'.\n", err)
 				os.Exit(1)
 			}
 
+			w.AddLineBreaks(1)
+
 			// Sanitize
 			answer = strings.TrimSpace(strings.ToLower(answer))
 			if len(answer) > 1 {
-				fmt.Fprintf(os.Stderr, "Invalid option: '%s'\n\n", answer)
+				fmt.Fprintf(w, "Invalid option: '%s'\n\n", answer)
 				continue
 			}
 
@@ -150,28 +157,27 @@ func runCommand(_ *cobra.Command, args []string) {
 				syncIncomingOnly = true
 				break
 			} else if answer == "?" {
-				fmt.Println()
-				fmt.Println(gchalk.Bold("Available options:"))
-				fmt.Printf("  %s = %s", gchalk.Bold("y"), "Full Sync (stash, pull+rebase, push) [default]\n")
-				fmt.Printf("  %s = %s", gchalk.Bold("n"), "No sync at all\n")
-				fmt.Printf("  %s = %s", gchalk.Bold("i"), "Sync incoming only (stash, pull+rebase)\n")
-				fmt.Printf("  %s = %s", gchalk.Bold("?"), "Explain options\n")
-				fmt.Println()
+				w.ResetToMarker()
+
+				fmt.Fprintln(w, gchalk.Bold("Available options:"))
+				fmt.Fprintf(w, "  %s = %s", gchalk.Bold("y"), "Full Sync (stash, pull+rebase, push) [default]\n")
+				fmt.Fprintf(w, "  %s = %s", gchalk.Bold("n"), "No sync at all\n")
+				fmt.Fprintf(w, "  %s = %s", gchalk.Bold("i"), "Sync incoming only (stash, pull+rebase)\n")
+				fmt.Fprintf(w, "  %s = %s", gchalk.Bold("?"), "Explain options\n")
+				fmt.Fprintln(w)
 			} else if answer == "y" || answer == "" {
 				break
 			}
 		}
 	}
 
-	fmt.Println()
+	fmt.Fprintln(w)
 
 	// /////////////////////////////////////////////////////////////////////////
 	// Step 5b: Do the actual sync
 	// /////////////////////////////////////////////////////////////////////////
 
-	syncedRepos := syncRepositories(syncableRepos, syncIncomingOnly)
-
-	printErrors(syncedRepos)
+	syncRepositories(repos, syncIncomingOnly, w)
 
 	fmt.Println()
 }
@@ -185,7 +191,7 @@ func findRepositories(basePath string) ([]*repo.Repository, error) {
 		return repos, err
 	}
 
-	entries, err := ioutil.ReadDir(basePath)
+	entries, err := os.ReadDir(basePath)
 	if err != nil {
 		return repos, err
 	}
@@ -210,13 +216,12 @@ func findRepositories(basePath string) ([]*repo.Repository, error) {
 	return repos, nil
 }
 
-func updateRepositories(repos []*repo.Repository) {
-	// 1. Start live writer and render the repositories
-	w := ui.NewStdoutWriter()
+func updateRepositories(repos []*repo.Repository, w *ui.StdoutWriter) {
 
 	// 2. Initial output showing all repos
-	ui.WriteRepositoryStatus(w, repos, false)
-	w.Flush()
+	w.Render(func() {
+		ui.WriteRepositoryStatus(w, repos, false)
+	})
 
 	// 3. Start a waitgroup
 	var wg sync.WaitGroup
@@ -227,8 +232,11 @@ func updateRepositories(repos []*repo.Repository) {
 		r := repos[idx]
 		go func() {
 			r.Update()
-			ui.WriteRepositoryStatus(w, repos, false)
-			w.Flush()
+
+			w.Render(func() {
+				ui.WriteRepositoryStatus(w, repos, false)
+			})
+
 			wg.Done()
 		}()
 	}
@@ -237,10 +245,7 @@ func updateRepositories(repos []*repo.Repository) {
 	wg.Wait()
 }
 
-func syncRepositories(repos []*repo.Repository, incomingOnly bool) []*repo.Repository {
-	// 1. Find the repos that are needed to by synced
-	var syncable []*repo.Repository
-
+func syncRepositories(repos []*repo.Repository, incomingOnly bool, w *ui.StdoutWriter) {
 	for idx := range repos {
 		r := repos[idx]
 
@@ -251,62 +256,38 @@ func syncRepositories(repos []*repo.Repository, incomingOnly bool) []*repo.Repos
 
 		if r.NeedsSync() {
 			r.State = repo.StateNeedsSync
-			syncable = append(syncable, r)
 		} else {
 			r.State = repo.StateNoSyncNeeded
 		}
 	}
 
-	// 2. Start live writer and render the repositories
-	w := ui.NewStdoutWriter()
-
-	ui.WriteRepositoryStatus(w, syncable, incomingOnly)
-	w.Flush()
+	// 2. Reset live writer and render the repositories
+	w.Reset()
+	ui.WriteRepositoryStatus(w, repos, incomingOnly)
 
 	// 3. Do the work async for better speed
-	if len(syncable) > 0 {
-		var wg sync.WaitGroup
-		wg.Add(len(syncable))
+	var wg sync.WaitGroup
+	wg.Add(len(repos))
 
-		for idx := range syncable {
-			r := syncable[idx]
-
-			go func() {
-				r.Sync(incomingOnly)
-				ui.WriteRepositoryStatus(w, syncable, incomingOnly)
-				w.Flush()
-				wg.Done()
-			}()
-		}
-		wg.Wait()
-	}
-
-	return syncable
-}
-
-func printErrors(repos []*repo.Repository) {
-	errorCount := repo.ErrorCount(repos)
-	if errorCount == 0 {
-		return
-	}
-
-	fmt.Fprintln(os.Stderr, gchalk.WithRed().Sprintf("Errors occured: %d\n", errorCount))
-
-	if !verboseArg {
-		return
-	}
-
-	for _, r := range repos {
-		if r.State != repo.StateError {
+	for idx := range repos {
+		r := repos[idx]
+		if r.State != repo.StateNeedsSync {
+			w.Render(func() {
+				ui.WriteRepositoryStatus(w, repos, incomingOnly)
+			})
+			wg.Done()
 			continue
 		}
-		fmt.Fprintln(os.Stderr)
-		fmt.Fprintln(os.Stderr, gchalk.WithRed().Sprintf("%s/%s:", r.Name, r.Branch))
-		ge, ok := r.Error.(*git.ExternalError)
-		if ok {
-			fmt.Fprintln(os.Stderr, ge.StdErr)
-		} else {
-			fmt.Fprintln(os.Stderr, r.Error.Error())
-		}
+
+		go func() {
+			r.Sync(incomingOnly)
+
+			w.Render(func() {
+				ui.WriteRepositoryStatus(w, repos, incomingOnly)
+			})
+
+			wg.Done()
+		}()
 	}
+	wg.Wait()
 }
