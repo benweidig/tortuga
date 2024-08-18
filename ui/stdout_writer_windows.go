@@ -19,7 +19,6 @@ var (
 	procGetConsoleScreenBufferInfo = kernel32.NewProc("GetConsoleScreenBufferInfo")
 	procSetConsoleCursorPosition   = kernel32.NewProc("SetConsoleCursorPosition")
 	procFillConsoleOutputCharacter = kernel32.NewProc("FillConsoleOutputCharacterW")
-	procFillConsoleOutputAttribute = kernel32.NewProc("FillConsoleOutputAttribute")
 )
 
 type short int16
@@ -60,7 +59,7 @@ func (w *StdoutWriter) reset(lineBreaks int) {
 
 	var writer io.Writer = os.Stdout
 	f, ok := writer.(fdWriter)
-	if ok == false || !isatty.IsTerminal(f.Fd()) {
+	if !ok || !isatty.IsTerminal(f.Fd()) {
 		for i := 0; i < w.lineBreaks; i++ {
 			fmt.Fprintf(os.Stdout, "%c[2K\r", ESCAPE)   // clear the line
 			fmt.Fprintf(os.Stdout, "%c[%dA", ESCAPE, 0) // move the cursor up
