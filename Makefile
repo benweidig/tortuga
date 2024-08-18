@@ -16,7 +16,7 @@ LDFLAGS_RELEASE := -ldflags "-X '${REPO}/version.Version=${VERSION}' -X '${REPO}
 
 
 .PHONY: all
-all: clean fmt lint build test
+all: clean fmt test vet staticcheck build
 
 
 .PHONY: clean
@@ -41,14 +41,14 @@ fmt:
 	go fmt
 
 
-.PHONY: lint
+.PHONY: vet
 lint:
 	#
 	# ################################################################################
-	# >>> TARGET: lint
+	# >>> TARGET: vet
 	# ################################################################################
 	#
-	golint ./...
+	go vet ./...
 
 
 .PHONY: test
@@ -58,7 +58,17 @@ test:
 	# >>> TARGET: test
 	# ################################################################################
 	#
-	go test
+	go test ./...
+
+
+.PHONY: staticcheck
+staticcheck:
+	#
+	# ################################################################################
+	# >>> TARGET: staticcheck
+	# ################################################################################
+	#
+	staticcheck ./...
 
 
 .PHONY: build
@@ -215,8 +225,6 @@ release-linux:
 	#
 	rm ${BUILD_FOLDER}/${BINARY}
 	rm -f ${BUILD_FOLDER}/deb/DEBIAN/control
-
-
 	rm -r ${BUILD_FOLDER}/deb
 
 
