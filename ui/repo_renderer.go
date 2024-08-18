@@ -10,6 +10,14 @@ import (
 	"github.com/jwalton/gchalk"
 )
 
+var (
+	chalkYellow     = gchalk.WithYellow()
+	chalkYellowBold = gchalk.WithYellow().WithBold()
+	chalkGreenBold  = gchalk.WithGreen().WithBold()
+	chalkWhite      = gchalk.WithWhite()
+	chalkGray       = gchalk.WithGray()
+)
+
 // WriteRepositoryStatus writes the current status to the provided Writer
 func WriteRepositoryStatus(w io.Writer, repos []*repo.Repository, incomingOnly bool) {
 	columnizer := newColumnizer()
@@ -19,34 +27,51 @@ func WriteRepositoryStatus(w io.Writer, repos []*repo.Repository, incomingOnly b
 		var name string
 		var branch string
 		var status string
+
+		if r.NeedsSync() {
+			name = chalkWhite.Bold(r.Name)
+			branch = chalkWhite.Bold(r.Branch)
+		} else {
+			name = gchalk.Gray(r.Name)
+			branch = gchalk.Gray(r.Branch)
+		}
 		switch r.State {
 
 		case repo.StateRemoteFetched:
 			var statusParts []string
 
+			hasIncOut := false
 			if r.Incoming > 0 {
-				statusParts = append(statusParts, gchalk.WithBrightYellow().WithBold().Sprintf("%d↓", r.Incoming))
+				statusParts = append(statusParts, chalkYellowBold.Sprintf("%d↓", r.Incoming))
+				hasIncOut = true
 			}
 			if r.Outgoing > 0 {
-				statusParts = append(statusParts, gchalk.WithBrightYellow().WithBold().Sprintf("%d↑", r.Outgoing))
+				statusParts = append(statusParts, chalkYellowBold.Sprintf("%d↑", r.Outgoing))
+				hasIncOut = true
+			}
+
+			var changesChalk *gchalk.Builder
+			if hasIncOut {
+				changesChalk = gchalk.WithWhite()
+			} else {
+				changesChalk = gchalk.WithGray()
 			}
 
 			if r.Changes > 0 {
-				statusParts = append(statusParts, gchalk.WithYellow().Sprintf("%d*", r.Changes))
+				statusParts = append(statusParts, changesChalk.Sprintf("%d*", r.Changes))
 			} else {
-				statusParts = append(statusParts, gchalk.Green("0*"))
+				if r.Noop() {
+					statusParts = append(statusParts, gchalk.Gray("-"))
+				}
 			}
 
 			if r.Unversioned > 0 {
-				statusParts = append(statusParts, gchalk.WithYellow().Sprintf("%d?", r.Unversioned))
-			}
+				if r.Incoming > 0 || r.Outgoing > 0 {
+					statusParts = append(statusParts, chalkWhite.Sprintf("%d?", r.Unversioned))
+				} else {
+					statusParts = append(statusParts, chalkGray.Sprintf("%d?", r.Unversioned))
+				}
 
-			if r.NeedsSync() {
-				name = gchalk.WithWhite().Bold(r.Name)
-				branch = gchalk.WithWhite().Bold(r.Branch)
-			} else {
-				name = gchalk.Gray(r.Name)
-				branch = gchalk.Gray(r.Branch)
 			}
 
 			status = strings.Join(statusParts, " ")
@@ -54,25 +79,25 @@ func WriteRepositoryStatus(w io.Writer, repos []*repo.Repository, incomingOnly b
 		case repo.StateSynced:
 			var statusParts []string
 
-			g := gchalk.WithWhite()
-
-			if r.Incoming > 0 || (!incomingOnly && r.Outgoing > 0) {
-				g = g.WithBold()
-			}
+			hasSynced := false
 
 			if r.Incoming > 0 {
-				statusParts = append(statusParts, gchalk.WithGreen().WithBold().Sprintf("%d↓", r.Incoming))
+				statusParts = append(statusParts, chalkGreenBold.Sprintf("%d↓", r.Incoming))
+				hasSynced = true
 			}
 			if r.Outgoing > 0 {
 				if incomingOnly {
-					statusParts = append(statusParts, gchalk.WithYellow().Sprintf("%d↑", r.Outgoing))
+					statusParts = append(statusParts, chalkYellow.Sprintf("%d↑", r.Outgoing))
 				} else {
-					statusParts = append(statusParts, gchalk.WithGreen().WithBold().Sprintf("%d↑", r.Outgoing))
+					statusParts = append(statusParts, chalkGreenBold.Sprintf("%d↑", r.Outgoing))
+					hasSynced = true
 				}
 			}
 
-			name = g.White(r.Name)
-			branch = g.White(r.Branch)
+			if hasSynced && gchalk.GetLevel() == gchalk.LevelNone {
+				statusParts = append(statusParts, "(synced)")
+			}
+
 			status = strings.Join(statusParts, " ")
 
 		case repo.StateError:
@@ -81,8 +106,6 @@ func WriteRepositoryStatus(w io.Writer, repos []*repo.Repository, incomingOnly b
 			status = gchalk.Red(r.Error.Error())
 
 		default:
-			name = gchalk.Gray(r.Name)
-			branch = gchalk.Gray(r.Branch)
 			status = gchalk.Gray("...")
 		}
 

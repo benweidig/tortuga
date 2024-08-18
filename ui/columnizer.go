@@ -81,7 +81,7 @@ func (t *columnizer) String() string {
 			}
 
 			if colIdx < borderedCols {
-				builder.WriteString(" | ")
+				builder.WriteString(" │ ")
 			}
 		}
 		builder.WriteString("\n")
@@ -112,7 +112,7 @@ type columnizerCell struct {
 	displayWidth int
 }
 
-var ansiColorCodesRegexp = regexp.MustCompile("\\x1b\\[[0-9;]*m")
+var ansiColorCodesRegexp = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
 func newColumnizerCell(content string) *columnizerCell {
 	// We need to remove ANSI color codes to get the actual width

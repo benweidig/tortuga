@@ -12,16 +12,19 @@ import (
 type Repository struct {
 	path string
 
-	Name        string
-	Branch      string
-	Remote      string
+	Name   string
+	Branch string
+	Remote string
+	State  State
+	Error  error
+
+	Incoming int
+	Outgoing int
+
 	Changes     int
-	stashed     bool
 	Unversioned int
-	Incoming    int
-	Outgoing    int
-	State       State
-	Error       error
+
+	stashed bool
 }
 
 // NewRepository creates a bare Repository construct containing the minimum for initial display
@@ -74,22 +77,16 @@ func (r *Repository) Update() error {
 		if len(row) < 3 {
 			continue
 		}
-		prefix := string(row[0:3])
 
-		switch strings.TrimSpace(prefix) {
-		case "M":
+		status := strings.TrimSpace(row[0:3])
+		if len(status) == 0 {
+			continue
+		}
+
+		switch status[0] {
+		case 'M', 'T', 'A', 'D', 'R', 'C', 'U':
 			r.Changes++
-		case "A":
-			r.Changes++
-		case "D":
-			r.Changes++
-		case "R":
-			r.Changes++
-		case "C":
-			r.Changes++
-		case "U":
-			r.Changes++
-		case "??":
+		case '?':
 			r.Unversioned++
 		}
 	}
@@ -130,7 +127,7 @@ func (r *Repository) Sync(incomingOnly bool) error {
 	}
 
 	if r.Changes > 0 {
-		err := git.Stash(r.path)
+		err := git.StashSave(r.path)
 		if err != nil {
 			return errorReturn(err)
 		}
@@ -177,4 +174,8 @@ func ErrorCount(r []*Repository) int {
 		}
 	}
 	return count
+}
+
+func (r *Repository) Noop() bool {
+	return r.Changes == 0 && r.Unversioned == 0 && r.Incoming == 0 && r.Outgoing == 0
 }

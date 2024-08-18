@@ -16,21 +16,14 @@ func IsAvailable() error {
 	return err
 }
 
-// IsPossiblyRepo tries to determinate if the a path is repo by checking for a '.git' folder
-func IsPossiblyRepo(basePath string) bool {
+// IsRepo tries to determinate if the a path is repo by checking for a '.git' folder
+func IsRepo(basePath string) bool {
 	gitPath := path.Join(basePath, ".git")
 	stat, err := os.Stat(gitPath)
-	if err != nil {
-		return false
-	}
-	if stat.IsDir() == false {
-		return false
-	}
-
-	return true
+	return err == nil && stat.IsDir()
 }
 
-func git(path string, args ...string) (bytes.Buffer, error) {
+func git(repoPath string, args ...string) (bytes.Buffer, error) {
 	// Disable terminal prompting so it fails if credentials are needed etc.
 	err := os.Setenv("GIT_TERMINAL_PROMPT", "0")
 	if err != nil {
@@ -38,7 +31,7 @@ func git(path string, args ...string) (bytes.Buffer, error) {
 	}
 
 	// Combine args and build command
-	args = append([]string{"-C", path}, args...)
+	args = append([]string{"-C", repoPath}, args...)
 	cmd := exec.Command("git", args...)
 
 	// Attach buffers, a function might need both so just grab'em
@@ -57,8 +50,8 @@ func git(path string, args ...string) (bytes.Buffer, error) {
 }
 
 // LocalBranch returns the local branch name of the current HEAD
-func LocalBranch(path string) (string, error) {
-	stdOut, err := git(path, "rev-parse", "--abbrev-ref", "HEAD")
+func LocalBranch(repoPath string) (string, error) {
+	stdOut, err := git(repoPath, "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
 		return "", err
 	}
@@ -74,8 +67,8 @@ func LocalBranch(path string) (string, error) {
 }
 
 // UpstreamBranch returns the name of the upstream branch
-func UpstreamBranch(path string) (string, error) {
-	stdOut, err := git(path, "rev-parse", "--symbolic-full-name", "--abbrev-ref", "@{u}")
+func UpstreamBranch(repoPath string) (string, error) {
+	stdOut, err := git(repoPath, "rev-parse", "--symbolic-full-name", "--abbrev-ref", "@{u}")
 	if err != nil {
 		return "", err
 	}
@@ -86,60 +79,62 @@ func UpstreamBranch(path string) (string, error) {
 	return branch, nil
 }
 
-func commitsCount(path string, rangeSpecifier string) (int, error) {
-	stdOut, err := git(path, "rev-list", rangeSpecifier)
+func RevList(repoPath string, rangeSpecifier string) ([]string, error) {
+	stdOut, err := git(repoPath, "rev-list", rangeSpecifier)
 	if err != nil {
-		return -1, err
+		return []string{}, err
 	}
 
-	count := bytes.Count(stdOut.Bytes(), []byte("\n"))
+	commits := strings.FieldsFunc(stdOut.String(), func(r rune) bool {
+		return r == '\n'
+	})
 
-	return count, nil
+	return commits, nil
 }
 
 // Incoming counts the incoming commits (head vs upstream)
-func Incoming(path string, branch string) (int, error) {
-	return commitsCount(path, fmt.Sprintf("HEAD..%s@{upstream}", branch))
+func Incoming(repoPath string, branch string) (int, error) {
+	commits, err := RevList(repoPath, fmt.Sprintf("HEAD..%s@{upstream}", branch))
+	return len(commits), err
 }
 
 // Outgoing counts the outgoing commits (push vs head)
-func Outgoing(path string, branch string) (int, error) {
-	return commitsCount(path, fmt.Sprintf("%s@{push}..HEAD", branch))
+func Outgoing(repoPath string, branch string) (int, error) {
+	commits, err := RevList(repoPath, fmt.Sprintf("%s@{push}..HEAD", branch))
+	return len(commits), err
 }
 
 // Fetch fetches the specified remote
-func Fetch(path string, remote string) error {
-	_, err := git(path, "fetch", remote)
+func Fetch(repoPath string, remote string) error {
+	_, err := git(repoPath, "fetch", remote)
 	return err
 }
 
 // Status returns a parseable (--porcelain) status
-func Status(path string) (bytes.Buffer, error) {
-	status, err := git(path, "status", "--porcelain")
-	return status, err
+func Status(repoPath string) (bytes.Buffer, error) {
+	return git(repoPath, "status", "--porcelain")
 }
 
 // Rebase tries to rebase the current working tree with the upstream
-func Rebase(path string) error {
-	_, err := git(path, "rebase", "@{u}")
+func Rebase(repoPath string) error {
+	_, err := git(repoPath, "rebase", "@{u}")
 	return err
 }
 
 // Push pushes the repository to the remote
-func Push(path string) error {
-	_, err := git(path, "push")
+func Push(repoPath string) error {
+	_, err := git(repoPath, "push")
 	return err
 }
 
 // Stash stashes the current working tree
-func Stash(path string) error {
-	_, err := git(path, "stash", "save")
-
+func StashSave(repoPath string) error {
+	_, err := git(repoPath, "stash", "save")
 	return err
 }
 
 // StashPop pops the last stash
-func StashPop(path string) error {
-	_, err := git(path, "stash", "pop")
+func StashPop(repoPath string) error {
+	_, err := git(repoPath, "stash", "pop")
 	return err
 }
