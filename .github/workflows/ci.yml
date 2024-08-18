@@ -1,18 +1,39 @@
 name: Go package
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
-  build:
+  ci:
+    name: "Run CI"
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macOS-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
 
-    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
-          go-version: ^1.20.1
+          go-version: ^1.23
 
-      - name: Build
+      - name: "Testing"
+        run: "go test ./..."
+
+      - name: "Vetting"
+        run: "go vet ./..."
+
+      - name: "StaticCheck"
+        uses: dominikh/staticcheck-action@v1.3.1
+        with:
+          version: "latest"
+          install-go: false
+          cache-key: ${{ matrix.os }}
+
+      - name: "Build"
         run: go build -v ./...
