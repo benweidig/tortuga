@@ -1,4 +1,8 @@
+![CI Workflow](https://github.com/benweidig/tortuga/actions/workflows/ci.yml/badge.svg)
+
 # Tortuga
+
+
 
 CLI tool for fetching/pushing/rebasing multiple git repositories at once.
 
