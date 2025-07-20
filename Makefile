@@ -41,8 +41,17 @@ fmt:
 	go fmt
 
 
-.PHONY: vet
+.PHONY: lint
 lint:
+	#
+	# ################################################################################
+	# >>> TARGET: lint
+	# ################################################################################
+	#
+	go vet ./...
+
+.PHONY: vet
+vet:
 	#
 	# ################################################################################
 	# >>> TARGET: vet
@@ -68,7 +77,11 @@ staticcheck:
 	# >>> TARGET: staticcheck
 	# ################################################################################
 	#
-	staticcheck ./...
+	@if command -v staticcheck >/dev/null 2>&1; then \
+		staticcheck ./...; \
+	else \
+		echo "staticcheck not found, skipping (install with: go install honnef.co/go/tools/cmd/staticcheck@latest)"; \
+	fi
 
 
 .PHONY: build
@@ -78,6 +91,7 @@ build:
 	# >>> TARGET: build
 	# ################################################################################
 	#
+	mkdir -p build
 	go build ${LDFLAGS_DEV} -o build/${BINARY}
 
 
@@ -122,7 +136,7 @@ release: clean fmt lint test prepare-release release-darwin release-linux releas
 	# >>> RELEASE DONE
 	# ################################################################################
 	#
-	@echo "Relase Done! Version: ${VERSION}"
+	@echo "Release Done! Version: ${VERSION}"
 
 
 .PHONY: release-linux
