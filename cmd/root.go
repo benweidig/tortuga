@@ -2,13 +2,11 @@ package cmd
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
-	"path"
 	"strings"
-	"sync"
 
-	"github.com/benweidig/tortuga/git"
 	"github.com/benweidig/tortuga/repo"
 	"github.com/benweidig/tortuga/ui"
 	"github.com/benweidig/tortuga/version"
@@ -73,9 +71,14 @@ func runCommand(_ *cobra.Command, args []string) {
 	// Step 2: Find repositories
 	// /////////////////////////////////////////////////////////////////////////
 
-	repos, _ := findRepositories(basePath)
+	manager := repo.NewManager()
+	err := manager.Discover(basePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error discovering repositories: '%s'.\n", err)
+		os.Exit(1)
+	}
 
-	if len(repos) == 0 {
+	if manager.Count() == 0 {
 		fmt.Fprintf(os.Stderr, "No repositories found at '%s'.\n", basePath)
 		os.Exit(1)
 	}
@@ -89,21 +92,13 @@ func runCommand(_ *cobra.Command, args []string) {
 	// Start live writer which we will use throughout the rendering
 	w := ui.NewStdoutWriter()
 
-	updateRepositories(repos, w)
+	updateRepositories(manager, w)
 
 	// /////////////////////////////////////////////////////////////////////////
 	// Step 4: Check if we can sync at all
 	// /////////////////////////////////////////////////////////////////////////
 
-	incoming := 0
-	outgoing := 0
-
-	for _, r := range repos {
-		incoming += r.Incoming
-		outgoing += r.Outgoing
-	}
-
-	if incoming == 0 && outgoing == 0 {
+	if !manager.HasChangesToSync() {
 		os.Exit(0)
 	}
 
@@ -123,12 +118,12 @@ func runCommand(_ *cobra.Command, args []string) {
 			w.Flush()
 
 			prompt := ""
-			if incoming > 0 {
-				prompt += gchalk.WithBrightYellow().Sprintf(" %d↓", incoming)
+			if manager.TotalIncoming() > 0 {
+				prompt += gchalk.WithBrightYellow().Sprintf(" %d↓", manager.TotalIncoming())
 			}
 
-			if outgoing > 0 {
-				prompt += gchalk.WithBrightYellow().Sprintf(" %d↑", outgoing)
+			if manager.TotalOutgoing() > 0 {
+				prompt += gchalk.WithBrightYellow().Sprintf(" %d↑", manager.TotalOutgoing())
 			}
 
 			fmt.Fprintf(w, "%s Sync Changes?%s [Y/n/i/?] ", gchalk.WithWhite().Bold(">>>"), prompt)
@@ -177,118 +172,40 @@ func runCommand(_ *cobra.Command, args []string) {
 	// Step 5b: Do the actual sync
 	// /////////////////////////////////////////////////////////////////////////
 
-	syncRepositories(repos, syncIncomingOnly, w)
+	syncRepositories(manager, syncIncomingOnly, w)
 
 	fmt.Println()
 }
 
-func findRepositories(basePath string) ([]*repo.Repository, error) {
-	var repos []*repo.Repository
-	g := git.New()
-
-	if g.IsRepo(basePath) {
-		r, err := repo.NewRepository(basePath)
-		repos = append(repos, r)
-		return repos, err
-	}
-
-	entries, err := os.ReadDir(basePath)
-	if err != nil {
-		return repos, err
-	}
-
-	for _, entry := range entries {
-		// We are only interested in directories
-		if !entry.IsDir() {
-			continue
-		}
-
-		// Build paths and check if we got .git directory
-		entryPath := path.Join(basePath, entry.Name())
-		if !g.IsRepo(entryPath) {
-			continue
-		}
-
-		// Build repository. We ignore errors so all will be displayed
-		r, _ := repo.NewRepository(entryPath)
-		repos = append(repos, r)
-	}
-
-	return repos, nil
-}
-
-func updateRepositories(repos []*repo.Repository, w *ui.StdoutWriter) {
-
-	// 2. Initial output showing all repos
+func updateRepositories(manager repo.RepositoryManager, w *ui.StdoutWriter) {
+	// Initial output showing all repos
+	repos := manager.GetRepositories()
 	w.Render(func() {
 		ui.WriteRepositoryStatus(w, repos, false)
 	})
 
-	// 3. Start a waitgroup
-	var wg sync.WaitGroup
-	wg.Add(len(repos))
-
-	// 4. Iterate over the repos and parallel check/update the repos and update the output
-	for idx := range repos {
-		r := repos[idx]
-		go func() {
-			r.Update()
-
-			w.Render(func() {
-				ui.WriteRepositoryStatus(w, repos, false)
-			})
-
-			wg.Done()
-		}()
-	}
-
-	// 5. Wait for all goroutines to finish
-	wg.Wait()
+	// Update all repositories with progress callback
+	ctx := context.Background()
+	manager.UpdateAll(ctx, func() {
+		repos := manager.GetRepositories()
+		w.Render(func() {
+			ui.WriteRepositoryStatus(w, repos, false)
+		})
+	})
 }
 
-func syncRepositories(repos []*repo.Repository, incomingOnly bool, w *ui.StdoutWriter) {
-	for idx := range repos {
-		r := repos[idx]
-
-		// No need to check an unsafe repository
-		if r.State == repo.StateError {
-			continue
-		}
-
-		if r.NeedsSync() {
-			r.State = repo.StateNeedsSync
-		} else {
-			r.State = repo.StateNoSyncNeeded
-		}
-	}
-
-	// 2. Reset live writer and render the repositories
+func syncRepositories(manager repo.RepositoryManager, incomingOnly bool, w *ui.StdoutWriter) {
+	// Reset live writer and render the repositories
 	w.Reset()
+	repos := manager.GetRepositories()
 	ui.WriteRepositoryStatus(w, repos, incomingOnly)
 
-	// 3. Do the work async for better speed
-	var wg sync.WaitGroup
-	wg.Add(len(repos))
-
-	for idx := range repos {
-		r := repos[idx]
-		if r.State != repo.StateNeedsSync {
-			w.Render(func() {
-				ui.WriteRepositoryStatus(w, repos, incomingOnly)
-			})
-			wg.Done()
-			continue
-		}
-
-		go func() {
-			r.Sync(incomingOnly)
-
-			w.Render(func() {
-				ui.WriteRepositoryStatus(w, repos, incomingOnly)
-			})
-
-			wg.Done()
-		}()
-	}
-	wg.Wait()
+	// Sync all repositories with progress callback
+	ctx := context.Background()
+	manager.SyncAll(ctx, incomingOnly, func() {
+		repos := manager.GetRepositories()
+		w.Render(func() {
+			ui.WriteRepositoryStatus(w, repos, incomingOnly)
+		})
+	})
 }
