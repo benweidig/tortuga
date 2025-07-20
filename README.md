@@ -1,44 +1,194 @@
 ![CI Workflow](https://github.com/benweidig/tortuga/actions/workflows/ci.yml/badge.svg)
 
-# Tortuga
+# Tortuga 🐢
 
+**Fast, parallel Git operations across multiple repositories**
 
-
-CLI tool for fetching/pushing/rebasing multiple git repositories at once.
+Tortuga is a modern CLI tool for managing multiple Git repositories simultaneously.
+It can fetch, rebase, and push changes across all your repositories with a single command, providing real-time progress updates.
 
 ![Tortuga Mascot](mascot.png)  
-[Based on Gopherize.me](https://gopherize.me/gopher/79e06dc4b7a8669c8aa0d6381af7f02f5474e3b7)  
-[Git Logo by Jason Long under CC BY 3.0](https://git-scm.com/downloads/logos)
 
-## Requirements
+## ✨ Features
 
-The tool won't ask for your git credentials because it checks multiple repositories at once async. You should have the credentials available via git-credentials-helper/-cache or it will display _Error_ for repositories it can't authenticate with.
+*   **🚀 Parallel Operations**:
+     Process multiple repositories concurrently for maximum speed
 
-## Install
+*   **📊 Real-time Progress**:
+    Live updates showing the status of each repository
 
-You can either build from source, use the .deb-files, or on macOS just use homebrew with `brew install benweidig/homebrew-tap/tortuga`.
+*   **🔄 Smart Sync Options**:
+    Choose between full sync or incoming-only updates
 
-## Usage
+*   **🎨 Beautiful Output**:
+    Color-coded status with clear visual indicators
+
+*   **⚡ Thread-safe**:
+    Modern Go concurrency patterns with channels and errgroup
+
+*   **🛡️ Error Resilient**:
+    Continue processing even if some repositories fail
+
+*   **🌈 Color Support**:
+    Respects terminal capabilities and `NO_COLOR` standard
+
+---
+
+## 🚀 Quick Start
+
+### Installation
+
+**macOS (Homebrew):**
+
+```bash
+brew install benweidig/homebrew-tap/tortuga
 ```
-tt [-m/--monochrome] [-y/--yes] [-v/--verbose] [<path>]
+
+**From Source:**
+
+```bash
+go install github.com/benweidig/tortuga@latest
 ```
 
-If the current directory is managed by git it will use it directly, if not `tt` will check all the direct sub-folders for repositories.
+**Pre-built Binaries:**
 
-## Arguments
+Download from [releases](https://github.com/benweidig/tortuga/releases) or use the provided `.deb` packages for Debian/Ubuntu.
 
-| Argument          | Default | Description                        |
-| ----------------- | ------- | ---------------------------------- |
-| -m / --monochrome | false   | Don't use ANSI colors              |
-| -y / --yes        | false   | Automatically _yes_ any question   |
-| -v / --verbose    | false   | Verbose error output               |
-| path              | .       | Path containing your repositories  |
 
-ANSI colors might be disabled automatically if the terminal doesn't seem to support it, but the detection is not perfect.
-The environment variable [`NO_COLOR`](http://no-color.org/) is also checked.
+### Basic Usage
 
-## License
+```bash
+# Check all repositories in current directory
+tt
+
+# Check repositories in specific path
+tt /path/to/my/projects
+
+# Auto-sync all changes without prompting
+tt --yes
+
+# Use monochrome output (no colors)
+tt --monochrome
+```
+
+---
+
+## 📖 How It Works
+
+1.  **Discovery**:
+    Tortuga scans the target directory for Git repositories
+
+2.  **Fetch**:
+    Parallel fetch from all remotes to check for updates
+
+3.  **Status Display**:
+    Real-time status showing incoming/outgoing commits and local changes
+
+4.  **Interactive Sync**: Choose your sync strategy:
+    *   `y` - Full sync (stash → pull+rebase → push)
+    *   `i` - Incoming only (stash → pull+rebase)
+    *   `n` - No sync (just show status)
+
+---
+
+## ⚙️ Configuration
+
+### Command Line Options
+
+| Flag               | Short | Description                               |
+| ------------------ | ----- | ----------------------------------------- |
+| `--monochrome`     | `-m`  | Disable ANSI colors                       |
+| `--yes`            | `-y`  | Automatically accept sync prompts         |
+| `--verbose`        | `-v`  | Show verbose error output                 |
+
+### Git Credentials
+
+Tortuga performs operations asynchronously across multiple repositories, so it cannot prompt for credentials interactively.
+Ensure your Git credentials are configured via:
+
+*   **SSH Keys**:
+    Recommended for seamless authentication
+
+*   **Git Credential Helper**:
+    `git config credential.helper store`
+
+*   **Git Credential Cache**:
+    `git config credential.helper cache`
+
+### Color Support
+
+Colors are automatically detected and disabled when:
+
+*   Terminal doesn't support ANSI colors
+*   `NO_COLOR` environment variable is set
+*   `--monochrome` flag is used
+
+---
+
+## 🏗️ Architecture
+
+Tortuga is built with modern Go patterns:
+
+- **Channel-based rendering**: Thread-safe UI updates without mutexes
+- **errgroup**: Proper error handling in concurrent operations  
+- **Repository Manager**: Clean abstraction for batch operations
+- **Git Interface**: Mockable Git operations for testing
+- **Structured Types**: Type-safe data structures instead of raw parsing
+
+---
+
+## 🔧 Building from Source
+
+### Requirements
+
+Go 1.24 or later
+
+### Build
+
+```bash
+git clone https://github.com/benweidig/tortuga.git
+cd tortuga
+make build
+```
+
+### Development
+
+```bash
+make all          # Full pipeline: clean, format, test, vet, staticcheck, build
+make test         # Run tests
+make fmt          # Format code
+make vet          # Run go vet
+make staticcheck  # Run staticcheck (if installed)
+```
+
+---
+
+## 📄 License
 
 MIT. See [LICENSE](LICENSE).
 
-Parts of the library (package ui / StdoutWriter) are _inspired_ by [gosuri/uilive](https://github.com/gosuri/uilive) which itself was released under MIT [license](https://github.com/gosuri/uilive/blob/master/LICENSE).
+## 🙏 Acknowledgments
+
+*   Mascot design [based on Gopherize.me](https://gopherize.me/gopher/79e06dc4b7a8669c8aa0d6381af7f02f5474e3b7)
+
+*   Git logo by [Jason Long](https://git-scm.com/downloads/logos) under CC BY 3.0
+
+*   Original UI inspiration from [gosuri/uilive](https://github.com/gosuri/uilive) (MIT License)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+### Development Setup
+
+1.  Fork the repository
+
+2.  Create your feature branch (`git checkout -b feature/amazing-feature`)
+
+3.  Run tests (`make test`)
+
+4.  Commit your changes (`git commit -m 'Add amazing feature'`)
+
+5.  Push to the branch (`git push origin feature/amazing-feature`)
+
+6.  Open a Pull Request
