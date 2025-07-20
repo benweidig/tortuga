@@ -1,9 +1,8 @@
 package repo
 
 import (
-	"bufio"
+	"context"
 	"path"
-	"strings"
 
 	"github.com/benweidig/tortuga/git"
 )
@@ -11,6 +10,7 @@ import (
 // Repository represents Git repository, but only the currently checked out branch
 type Repository struct {
 	path string
+	git  git.Git
 
 	Name   string
 	Branch string
@@ -29,25 +29,26 @@ type Repository struct {
 
 // NewRepository creates a bare Repository construct containing the minimum for initial display
 func NewRepository(repoPath string) (*Repository, error) {
+	return NewRepositoryWithGit(repoPath, git.New())
+}
+
+// NewRepositoryWithGit creates a repository with a specific Git implementation
+func NewRepositoryWithGit(repoPath string, gitImpl git.Git) (*Repository, error) {
 	r := &Repository{
 		Name:  path.Base(repoPath),
 		path:  repoPath,
+		git:   gitImpl,
 		State: StateNone,
 	}
 
-	branch, err := git.LocalBranch(r.path)
+	ctx := context.Background()
+	branchInfo, err := r.git.GetBranchInfo(ctx, r.path)
 	if err != nil {
 		r.withError(err).Branch = "???"
 		return r, err
 	}
-	r.Branch = branch
-
-	upstreamBranch, err := git.UpstreamBranch(r.path)
-	if err != nil {
-		r.withError(err)
-		return r, err
-	}
-	r.Remote = strings.Split(upstreamBranch, "/")[0]
+	r.Branch = branchInfo.LocalBranch
+	r.Remote = branchInfo.Remote
 
 	return r, nil
 }
@@ -66,47 +67,30 @@ func (r *Repository) Update() error {
 	if r.State == StateError {
 		return nil
 	}
-	status, err := git.Status(r.path)
+
+	ctx := context.Background()
+
+	// Get status information
+	statusInfo, err := r.git.GetStatus(ctx, r.path)
 	if err != nil {
 		return r.withError(err).Error
 	}
-	scanner := bufio.NewScanner(&status)
+	r.Changes = statusInfo.ChangedFiles
+	r.Unversioned = statusInfo.UnversionedFiles
 
-	for scanner.Scan() {
-		row := scanner.Text()
-		if len(row) < 3 {
-			continue
-		}
-
-		status := strings.TrimSpace(row[0:3])
-		if len(status) == 0 {
-			continue
-		}
-
-		switch status[0] {
-		case 'M', 'T', 'A', 'D', 'R', 'C', 'U':
-			r.Changes++
-		case '?':
-			r.Unversioned++
-		}
-	}
-
-	err = git.Fetch(r.path, r.Remote)
+	// Fetch from remote
+	err = r.git.Fetch(ctx, r.path, r.Remote)
 	if err != nil {
 		return r.withError(err).Error
 	}
 
-	incoming, err := git.Incoming(r.path, r.Branch)
+	// Get sync information
+	syncInfo, err := r.git.GetSyncInfo(ctx, r.path, r.Branch)
 	if err != nil {
 		return r.withError(err).Error
 	}
-	r.Incoming = incoming
-
-	outgoing, err := git.Outgoing(r.path, r.Branch)
-	if err != nil {
-		return r.withError(err).Error
-	}
-	r.Outgoing = outgoing
+	r.Incoming = syncInfo.IncomingCommits
+	r.Outgoing = syncInfo.OutgoingCommits
 
 	r.State = StateRemoteFetched
 
@@ -119,15 +103,17 @@ func (r *Repository) Sync(incomingOnly bool) error {
 		return nil
 	}
 
+	ctx := context.Background()
+
 	errorReturn := func(err error) error {
 		if r.stashed {
-			git.StashPop(r.path)
+			r.git.StashPop(ctx, r.path)
 		}
 		return r.withError(err).Error
 	}
 
 	if r.Changes > 0 {
-		err := git.StashSave(r.path)
+		err := r.git.StashSave(ctx, r.path)
 		if err != nil {
 			return errorReturn(err)
 		}
@@ -135,21 +121,21 @@ func (r *Repository) Sync(incomingOnly bool) error {
 	}
 
 	if r.Incoming > 0 {
-		err := git.Rebase(r.path)
+		err := r.git.Rebase(ctx, r.path)
 		if err != nil {
 			return errorReturn(err)
 		}
 	}
 
 	if !incomingOnly && r.Outgoing > 0 {
-		err := git.Push(r.path)
+		err := r.git.Push(ctx, r.path)
 		if err != nil {
 			return errorReturn(err)
 		}
 	}
 
 	if r.stashed {
-		err := git.StashPop(r.path)
+		err := r.git.StashPop(ctx, r.path)
 		if err != nil {
 			return r.withError(err).Error
 		}

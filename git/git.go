@@ -24,15 +24,12 @@ func IsRepo(basePath string) bool {
 }
 
 func git(repoPath string, args ...string) (bytes.Buffer, error) {
-	// Disable terminal prompting so it fails if credentials are needed etc.
-	err := os.Setenv("GIT_TERMINAL_PROMPT", "0")
-	if err != nil {
-		return bytes.Buffer{}, err
-	}
-
 	// Combine args and build command
 	args = append([]string{"-C", repoPath}, args...)
 	cmd := exec.Command("git", args...)
+
+	// Set environment to disable terminal prompting (thread-safe)
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 
 	// Attach buffers, a function might need both so just grab'em
 	var outBuffer bytes.Buffer
@@ -41,7 +38,7 @@ func git(repoPath string, args ...string) (bytes.Buffer, error) {
 	cmd.Stderr = &errBuffer
 
 	// Run command, but don't handle errors here, this is just a helper function
-	err = cmd.Run()
+	err := cmd.Run()
 
 	if err != nil {
 		err = wrapError(err, errBuffer)

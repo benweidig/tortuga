@@ -184,8 +184,9 @@ func runCommand(_ *cobra.Command, args []string) {
 
 func findRepositories(basePath string) ([]*repo.Repository, error) {
 	var repos []*repo.Repository
+	g := git.New()
 
-	if git.IsRepo(basePath) {
+	if g.IsRepo(basePath) {
 		r, err := repo.NewRepository(basePath)
 		repos = append(repos, r)
 		return repos, err
@@ -204,7 +205,7 @@ func findRepositories(basePath string) ([]*repo.Repository, error) {
 
 		// Build paths and check if we got .git directory
 		entryPath := path.Join(basePath, entry.Name())
-		if !git.IsRepo(entryPath) {
+		if !g.IsRepo(entryPath) {
 			continue
 		}
 
