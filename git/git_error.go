@@ -5,44 +5,51 @@ import (
 	"strings"
 )
 
-// ExternalError is a wrapper around an error occured running the git exectuable
-type ExternalError struct {
+// GitError is a wrapper around an error occurred running the git executable
+type GitError struct {
 	Cause   error
 	StdErr  string
 	message string
 }
 
-func (e *ExternalError) Error() string {
+func (e *GitError) Error() string {
 	return e.message
 }
 
-func isAuthError(ge *ExternalError) bool {
-	return strings.HasPrefix(ge.StdErr, "fatal: could not read Username") ||
-		strings.HasPrefix(ge.StdErr, "fatal: could not read Password")
+// Unwrap returns the underlying error for error chain support
+func (e *GitError) Unwrap() error {
+	return e.Cause
 }
 
-func isNoUpstreamError(ge *ExternalError) bool {
-	return strings.HasPrefix(ge.StdErr, "fatal: no upstream")
+func isAuthError(stderr string) bool {
+	return strings.HasPrefix(stderr, "fatal: could not read Username") ||
+		strings.HasPrefix(stderr, "fatal: could not read Password")
 }
 
-func wrapError(err error, stdErr bytes.Buffer) *ExternalError {
+func isNoUpstreamError(stderr string) bool {
+	return strings.HasPrefix(stderr, "fatal: no upstream")
+}
+
+func wrapError(err error, stdErr bytes.Buffer) *GitError {
 	if err == nil {
 		return nil
 	}
 
-	ge := &ExternalError{
-		Cause:  err,
-		StdErr: stdErr.String(),
-	}
+	stderrStr := stdErr.String()
+	var message string
 
 	switch {
-	case isAuthError(ge):
-		ge.message = "auth error"
-	case isNoUpstreamError(ge):
-		ge.message = "no upstream"
+	case isAuthError(stderrStr):
+		message = "auth error"
+	case isNoUpstreamError(stderrStr):
+		message = "no upstream"
 	default:
-		ge.message = "error"
+		message = "error"
 	}
 
-	return ge
+	return &GitError{
+		Cause:   err,
+		StdErr:  stderrStr,
+		message: message,
+	}
 }
