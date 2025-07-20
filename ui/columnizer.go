@@ -3,37 +3,26 @@ package ui
 import (
 	"regexp"
 	"strings"
-	"sync"
 
 	"github.com/mattn/go-runewidth"
 )
 
 type columnizer struct {
 	rows []*columnizerRow
-	mtx  *sync.RWMutex
 }
 
-// NewColumnizer creates a new table with sensible defaults
+// newColumnizer creates a new table
 func newColumnizer() *columnizer {
-	return &columnizer{
-		mtx: new(sync.RWMutex),
-	}
+	return &columnizer{}
 }
 
 func (t *columnizer) AddRow(contents ...string) {
-	// We don't want to have a half-build table so we need a lock for updating content
-	t.mtx.Lock()
-	defer t.mtx.Unlock()
-
 	row := newColumnizerRow(contents...)
 	t.rows = append(t.rows, row)
 }
 
-// Returns string representation of the table
+// String returns string representation of the table
 func (t *columnizer) String() string {
-	// We want to make sure the data won't change mid string building
-	t.mtx.RLock()
-	defer t.mtx.RUnlock()
 
 	// Empty table == empty string
 	if len(t.rows) == 0 {
@@ -64,7 +53,7 @@ func (t *columnizer) String() string {
 
 	// Build table data
 	for _, row := range t.rows {
-		for colIdx := 0; colIdx < cols; colIdx++ {
+		for colIdx := range cols {
 			colWidth := colWidths[colIdx]
 
 			// Rows don't need to have the same amount of cells so we might need to fill up
@@ -74,7 +63,7 @@ func (t *columnizer) String() string {
 				builder.WriteString(cell.paddedContent(colWidth))
 			} else {
 				if colIdx < cols-1 {
-					for i := 0; i < colWidth; i++ {
+					for range colWidth {
 						builder.WriteByte(' ')
 					}
 				}
@@ -128,7 +117,7 @@ func (c *columnizerCell) paddedContent(colWidth int) string {
 	var builder strings.Builder
 	builder.Grow(colWidth)
 	builder.WriteString(c.content)
-	for i := 0; i < colWidth-c.displayWidth; i++ {
+	for range colWidth - c.displayWidth {
 		builder.WriteByte(' ')
 	}
 	return builder.String()
