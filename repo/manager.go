@@ -45,19 +45,12 @@ func NewManager() RepositoryManager {
 	}
 }
 
-// NewManagerWithGit creates a new repository manager with a specific Git implementation
-func NewManagerWithGit(gitImpl git.Git) RepositoryManager {
-	return &repositoryManagerImpl{
-		git: gitImpl,
-	}
-}
-
 // Discover finds all repositories in the given path
 func (m *repositoryManagerImpl) Discover(basePath string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.repositories = nil
+	m.repositories = m.repositories[:0]
 
 	if m.git.IsRepo(basePath) {
 		r, err := NewRepositoryWithGit(basePath, m.git)
@@ -136,12 +129,12 @@ func (m *repositoryManagerImpl) UpdateAll(ctx context.Context, progressCallback 
 
 	// Wait for all updates to complete and collect any errors
 	err := g.Wait()
-	
+
 	// Final render after all operations are complete
 	if progressCallback != nil {
 		progressCallback()
 	}
-	
+
 	// Note: We return the first error encountered, but all repos still get processed
 	return err
 }
@@ -189,12 +182,12 @@ func (m *repositoryManagerImpl) SyncAll(ctx context.Context, incomingOnly bool, 
 
 	// Wait for all syncs to complete and collect any errors
 	err := g.Wait()
-	
+
 	// Final render after all operations are complete
 	if progressCallback != nil {
 		progressCallback()
 	}
-	
+
 	// Note: We return the first error encountered, but all repos still get processed
 	return err
 }
