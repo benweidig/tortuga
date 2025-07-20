@@ -110,13 +110,10 @@ func (m *repositoryManagerImpl) Count() int {
 // UpdateAll updates all repositories in parallel
 func (m *repositoryManagerImpl) UpdateAll(ctx context.Context, progressCallback ProgressCallback) error {
 	repos := m.GetRepositories()
+	progressCallback()
+
 	if len(repos) == 0 {
 		return nil
-	}
-
-	// Initial progress callback
-	if progressCallback != nil {
-		progressCallback()
 	}
 
 	var wg sync.WaitGroup
@@ -126,9 +123,7 @@ func (m *repositoryManagerImpl) UpdateAll(ctx context.Context, progressCallback 
 		go func(repo *Repository) {
 			defer wg.Done()
 			repo.Update()
-			if progressCallback != nil {
-				progressCallback()
-			}
+			progressCallback()
 		}(r)
 	}
 
@@ -139,6 +134,7 @@ func (m *repositoryManagerImpl) UpdateAll(ctx context.Context, progressCallback 
 // SyncAll syncs all repositories that need syncing in parallel
 func (m *repositoryManagerImpl) SyncAll(ctx context.Context, incomingOnly bool, progressCallback ProgressCallback) error {
 	repos := m.GetRepositories()
+
 	if len(repos) == 0 {
 		return nil
 	}
@@ -155,10 +151,7 @@ func (m *repositoryManagerImpl) SyncAll(ctx context.Context, incomingOnly bool, 
 		}
 	}
 
-	// Initial progress callback
-	if progressCallback != nil {
-		progressCallback()
-	}
+	progressCallback()
 
 	var wg sync.WaitGroup
 	wg.Add(len(repos))
@@ -169,9 +162,7 @@ func (m *repositoryManagerImpl) SyncAll(ctx context.Context, incomingOnly bool, 
 			if repo.State == StateNeedsSync {
 				repo.Sync(incomingOnly)
 			}
-			if progressCallback != nil {
-				progressCallback()
-			}
+			progressCallback()
 		}(r)
 	}
 

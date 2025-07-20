@@ -37,154 +37,140 @@ func init() {
 }
 
 func runCommand(_ *cobra.Command, args []string) {
+	basePath := determineBasePath(args)
+	setupColorOutput()
 
-	// /////////////////////////////////////////////////////////////////////////
-	// Step 1: Parse arguments and prepare requirements
-	// /////////////////////////////////////////////////////////////////////////
-
-	// Determinate the directory to check.
-	var basePath string
-
-	// There can only be 0 or 1 arguments, so this check is enough
-	if len(args) == 1 {
-		basePath = args[0]
-	} else {
-		// Falback to actual working directory
-		wd, err := os.Getwd()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Couldn't retrieve working directory: '%s'.\n", err)
-			os.Exit(1)
-		}
-		basePath = wd
-	}
-
-	// Disable colors if requested either via arg or env, see http://no-color.org/.
-	// The color library might disable color nontheless if it thinks the terminal isn't
-	// supporting it.
-	_, noColorEnvExists := os.LookupEnv("NO_COLOR")
-	monochromeArg = monochromeArg || noColorEnvExists
-	if monochromeArg {
-		gchalk.SetLevel(gchalk.LevelNone)
-	}
-
-	// /////////////////////////////////////////////////////////////////////////
-	// Step 2: Find repositories
-	// /////////////////////////////////////////////////////////////////////////
-
-	manager := repo.NewManager()
-	err := manager.Discover(basePath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error discovering repositories: '%s'.\n", err)
-		os.Exit(1)
-	}
-
+	manager := discoverRepositories(basePath)
 	if manager.Count() == 0 {
 		fmt.Fprintf(os.Stderr, "No repositories found at '%s'.\n", basePath)
 		os.Exit(1)
 	}
 
-	// /////////////////////////////////////////////////////////////////////////
-	// Step 3: Update repositories
-	// /////////////////////////////////////////////////////////////////////////
-
 	fmt.Println()
-
-	// Start live writer which we will use throughout the rendering
 	w := ui.NewStdoutWriter()
 
 	updateRepositories(manager, w)
-
-	// /////////////////////////////////////////////////////////////////////////
-	// Step 4: Check if we can sync at all
-	// /////////////////////////////////////////////////////////////////////////
 
 	if !manager.HasChangesToSync() {
 		os.Exit(0)
 	}
 
-	// /////////////////////////////////////////////////////////////////////////
-	// Step 5a: Ask if you should sync
-	// /////////////////////////////////////////////////////////////////////////
-
-	var syncIncomingOnly bool
-
-	if !yesArg {
-
-		// Mark the current position so we can reset properly
-		w.Mark()
-
-		for {
-			// Flush first, or we need to flush after each write
-			w.Flush()
-
-			prompt := ""
-			if manager.TotalIncoming() > 0 {
-				prompt += gchalk.WithBrightYellow().Sprintf(" %d↓", manager.TotalIncoming())
-			}
-
-			if manager.TotalOutgoing() > 0 {
-				prompt += gchalk.WithBrightYellow().Sprintf(" %d↑", manager.TotalOutgoing())
-			}
-
-			fmt.Fprintf(w, "%s Sync Changes?%s [Y/n/i/?] ", gchalk.WithWhite().Bold(">>>"), prompt)
-			w.Flush()
-
-			r := bufio.NewReader(os.Stdin)
-
-			answer, err := r.ReadString('\n')
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Couldn't get prompt answer: '%s'.\n", err)
-				os.Exit(1)
-			}
-
-			w.AddLineBreaks(1)
-
-			// Sanitize
-			answer = strings.TrimSpace(strings.ToLower(answer))
-			if len(answer) > 1 {
-				fmt.Fprintf(w, "Invalid option: '%s'\n\n", answer)
-				continue
-			}
-
-			if answer == "n" {
-				os.Exit(0)
-			} else if answer == "i" {
-				syncIncomingOnly = true
-				break
-			} else if answer == "?" {
-				w.ResetToMarker()
-
-				fmt.Fprintln(w, gchalk.Bold("Available options:"))
-				fmt.Fprintf(w, "  %s = %s", gchalk.Bold("y"), "Full Sync (stash, pull+rebase, push) [default]\n")
-				fmt.Fprintf(w, "  %s = %s", gchalk.Bold("n"), "No sync at all\n")
-				fmt.Fprintf(w, "  %s = %s", gchalk.Bold("i"), "Sync incoming only (stash, pull+rebase)\n")
-				fmt.Fprintf(w, "  %s = %s", gchalk.Bold("?"), "Explain options\n")
-				fmt.Fprintln(w)
-			} else if answer == "y" || answer == "" {
-				break
-			}
-		}
-	}
-
+	syncIncomingOnly := promptUserForSyncOptions(manager, w)
 	fmt.Fprintln(w)
 
-	// /////////////////////////////////////////////////////////////////////////
-	// Step 5b: Do the actual sync
-	// /////////////////////////////////////////////////////////////////////////
-
 	syncRepositories(manager, syncIncomingOnly, w)
-
 	fmt.Println()
 }
 
-func updateRepositories(manager repo.RepositoryManager, w *ui.StdoutWriter) {
-	// Initial output showing all repos
-	repos := manager.GetRepositories()
-	w.Render(func() {
-		ui.WriteRepositoryStatus(w, repos, false)
-	})
+// determineBasePath returns the target directory from args or current working directory
+func determineBasePath(args []string) string {
+	if len(args) == 1 {
+		return args[0]
+	}
 
-	// Update all repositories with progress callback
+	wd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Couldn't retrieve working directory: '%s'.\n", err)
+		os.Exit(1)
+	}
+	return wd
+}
+
+// setupColorOutput configures color output based on flags and environment
+func setupColorOutput() {
+	_, noColorEnvExists := os.LookupEnv("NO_COLOR")
+	if monochromeArg || noColorEnvExists {
+		gchalk.SetLevel(gchalk.LevelNone)
+	}
+}
+
+// discoverRepositories finds and initializes all repositories in the given path
+func discoverRepositories(basePath string) repo.RepositoryManager {
+	manager := repo.NewManager()
+	if err := manager.Discover(basePath); err != nil {
+		fmt.Fprintf(os.Stderr, "Error discovering repositories: '%s'.\n", err)
+		os.Exit(1)
+	}
+	return manager
+}
+
+// promptUserForSyncOptions presents sync options to user and returns their choice
+func promptUserForSyncOptions(manager repo.RepositoryManager, w *ui.StdoutWriter) bool {
+	if yesArg {
+		return false // full sync
+	}
+
+	w.Mark()
+	for {
+		w.Flush()
+
+		prompt := buildSyncPrompt(manager)
+		fmt.Fprintf(w, "%s Sync Changes?%s [Y/n/i/?] ", gchalk.WithWhite().Bold(">>>"), prompt)
+		w.Flush()
+
+		answer := readUserInput()
+		w.AddLineBreaks(1)
+
+		switch processUserAnswer(answer, w) {
+		case "n":
+			os.Exit(0)
+		case "i":
+			return true // incoming only
+		case "?":
+			showHelpOptions(w)
+		case "y", "":
+			return false // full sync
+		default:
+			// continue loop for invalid input
+		}
+	}
+}
+
+// buildSyncPrompt creates the sync prompt showing incoming/outgoing counts
+func buildSyncPrompt(manager repo.RepositoryManager) string {
+	var parts []string
+	if manager.TotalIncoming() > 0 {
+		parts = append(parts, gchalk.WithBrightYellow().Sprintf(" %d↓", manager.TotalIncoming()))
+	}
+	if manager.TotalOutgoing() > 0 {
+		parts = append(parts, gchalk.WithBrightYellow().Sprintf(" %d↑", manager.TotalOutgoing()))
+	}
+	return strings.Join(parts, "")
+}
+
+// readUserInput reads and sanitizes user input
+func readUserInput() string {
+	r := bufio.NewReader(os.Stdin)
+	answer, err := r.ReadString('\n')
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Couldn't get prompt answer: '%s'.\n", err)
+		os.Exit(1)
+	}
+	return strings.TrimSpace(strings.ToLower(answer))
+}
+
+// processUserAnswer validates and returns the user's choice
+func processUserAnswer(answer string, w *ui.StdoutWriter) string {
+	if len(answer) > 1 {
+		fmt.Fprintf(w, "Invalid option: '%s'\n\n", answer)
+		return "invalid"
+	}
+	return answer
+}
+
+// showHelpOptions displays available sync options
+func showHelpOptions(w *ui.StdoutWriter) {
+	w.ResetToMarker()
+	fmt.Fprintln(w, gchalk.Bold("Available options:"))
+	fmt.Fprintf(w, "  %s = %s", gchalk.Bold("y"), "Full Sync (stash, pull+rebase, push) [default]\n")
+	fmt.Fprintf(w, "  %s = %s", gchalk.Bold("n"), "No sync at all\n")
+	fmt.Fprintf(w, "  %s = %s", gchalk.Bold("i"), "Sync incoming only (stash, pull+rebase)\n")
+	fmt.Fprintf(w, "  %s = %s", gchalk.Bold("?"), "Explain options\n")
+	fmt.Fprintln(w)
+}
+
+// updateRepositories fetches latest changes for all repositories
+func updateRepositories(manager repo.RepositoryManager, w *ui.StdoutWriter) {
 	ctx := context.Background()
 	manager.UpdateAll(ctx, func() {
 		repos := manager.GetRepositories()
@@ -194,13 +180,8 @@ func updateRepositories(manager repo.RepositoryManager, w *ui.StdoutWriter) {
 	})
 }
 
+// syncRepositories performs sync operations on all repositories
 func syncRepositories(manager repo.RepositoryManager, incomingOnly bool, w *ui.StdoutWriter) {
-	// Reset live writer and render the repositories
-	w.Reset()
-	repos := manager.GetRepositories()
-	ui.WriteRepositoryStatus(w, repos, incomingOnly)
-
-	// Sync all repositories with progress callback
 	ctx := context.Background()
 	manager.SyncAll(ctx, incomingOnly, func() {
 		repos := manager.GetRepositories()
