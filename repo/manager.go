@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/benweidig/tortuga/git"
+	"golang.org/x/sync/errgroup"
 )
 
 // ProgressCallback is called during repository operations to report progress
@@ -110,31 +111,44 @@ func (m *repositoryManagerImpl) Count() int {
 // UpdateAll updates all repositories in parallel
 func (m *repositoryManagerImpl) UpdateAll(ctx context.Context, progressCallback ProgressCallback) error {
 	repos := m.GetRepositories()
-	progressCallback()
-
 	if len(repos) == 0 {
 		return nil
 	}
 
-	var wg sync.WaitGroup
-	wg.Add(len(repos))
-
-	for _, r := range repos {
-		go func(repo *Repository) {
-			defer wg.Done()
-			repo.Update()
-			progressCallback()
-		}(r)
+	// Initial progress callback
+	if progressCallback != nil {
+		progressCallback()
 	}
 
-	wg.Wait()
-	return nil
+	// Use errgroup to handle errors from repository operations
+	g := &errgroup.Group{}
+
+	for _, r := range repos {
+		r := r // capture loop variable
+		g.Go(func() error {
+			err := r.Update()
+			if progressCallback != nil {
+				progressCallback()
+			}
+			return err // This will be collected by errgroup
+		})
+	}
+
+	// Wait for all updates to complete and collect any errors
+	err := g.Wait()
+	
+	// Final render after all operations are complete
+	if progressCallback != nil {
+		progressCallback()
+	}
+	
+	// Note: We return the first error encountered, but all repos still get processed
+	return err
 }
 
 // SyncAll syncs all repositories that need syncing in parallel
 func (m *repositoryManagerImpl) SyncAll(ctx context.Context, incomingOnly bool, progressCallback ProgressCallback) error {
 	repos := m.GetRepositories()
-
 	if len(repos) == 0 {
 		return nil
 	}
@@ -151,23 +165,38 @@ func (m *repositoryManagerImpl) SyncAll(ctx context.Context, incomingOnly bool, 
 		}
 	}
 
-	progressCallback()
-
-	var wg sync.WaitGroup
-	wg.Add(len(repos))
-
-	for _, r := range repos {
-		go func(repo *Repository) {
-			defer wg.Done()
-			if repo.State == StateNeedsSync {
-				repo.Sync(incomingOnly)
-			}
-			progressCallback()
-		}(r)
+	// Initial progress callback
+	if progressCallback != nil {
+		progressCallback()
 	}
 
-	wg.Wait()
-	return nil
+	// Use errgroup to handle errors from repository operations
+	g := &errgroup.Group{}
+
+	for _, r := range repos {
+		r := r // capture loop variable
+		g.Go(func() error {
+			var err error
+			if r.State == StateNeedsSync {
+				err = r.Sync(incomingOnly)
+			}
+			if progressCallback != nil {
+				progressCallback()
+			}
+			return err // This will be collected by errgroup
+		})
+	}
+
+	// Wait for all syncs to complete and collect any errors
+	err := g.Wait()
+	
+	// Final render after all operations are complete
+	if progressCallback != nil {
+		progressCallback()
+	}
+	
+	// Note: We return the first error encountered, but all repos still get processed
+	return err
 }
 
 // TotalIncoming returns the total number of incoming commits across all repositories

@@ -47,18 +47,26 @@ func runCommand(_ *cobra.Command, args []string) {
 	}
 
 	fmt.Println()
+	
+	// Create UI renderer and start it
 	w := ui.NewStdoutWriter()
+	renderer := ui.NewUIRenderer(manager, w)
+	
+	ctx := context.Background()
+	renderer.Start(ctx)
+	defer renderer.Stop()
 
-	updateRepositories(manager, w)
+	updateRepositories(manager, renderer)
 
 	if !manager.HasChangesToSync() {
-		os.Exit(0)
+		renderer.Stop()
+		return
 	}
 
 	syncIncomingOnly := promptUserForSyncOptions(manager, w)
 	fmt.Fprintln(w)
 
-	syncRepositories(manager, syncIncomingOnly, w)
+	syncRepositories(manager, syncIncomingOnly, renderer)
 	fmt.Println()
 }
 
@@ -170,23 +178,19 @@ func showHelpOptions(w *ui.StdoutWriter) {
 }
 
 // updateRepositories fetches latest changes for all repositories
-func updateRepositories(manager repo.RepositoryManager, w *ui.StdoutWriter) {
+func updateRepositories(manager repo.RepositoryManager, renderer ui.UIRenderer) {
 	ctx := context.Background()
-	manager.UpdateAll(ctx, func() {
-		repos := manager.GetRepositories()
-		w.Render(func() {
-			ui.WriteRepositoryStatus(w, repos, false)
-		})
-	})
+	// This now blocks until all updates are complete and final render is done
+	if err := manager.UpdateAll(ctx, renderer.RenderProgress(false)); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Some repositories failed to update: %v\n", err)
+	}
 }
 
 // syncRepositories performs sync operations on all repositories
-func syncRepositories(manager repo.RepositoryManager, incomingOnly bool, w *ui.StdoutWriter) {
+func syncRepositories(manager repo.RepositoryManager, incomingOnly bool, renderer ui.UIRenderer) {
 	ctx := context.Background()
-	manager.SyncAll(ctx, incomingOnly, func() {
-		repos := manager.GetRepositories()
-		w.Render(func() {
-			ui.WriteRepositoryStatus(w, repos, incomingOnly)
-		})
-	})
+	// This now blocks until all syncs are complete and final render is done
+	if err := manager.SyncAll(ctx, incomingOnly, renderer.RenderProgress(incomingOnly)); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Some repositories failed to sync: %v\n", err)
+	}
 }

@@ -3,42 +3,31 @@ package ui
 import (
 	"bytes"
 	"os"
-	"sync"
 )
 
 // ESCAPE is the ASCII code for escape character
 const ESCAPE = 27
 
 // StdoutWriter is an "in-place" writer for the StdOut
+// Note: This is now designed for single-threaded use with the UIRenderer
 type StdoutWriter struct {
 	buffer             bytes.Buffer
-	writeMtx           *sync.Mutex
-	renderMtx          *sync.Mutex
 	lineBreaks         int
 	preserveLineBreaks int
 }
 
 // NewStdoutWriter returns a new Writer
 func NewStdoutWriter() *StdoutWriter {
-	return &StdoutWriter{
-		writeMtx:  &sync.Mutex{},
-		renderMtx: &sync.Mutex{},
-	}
+	return &StdoutWriter{}
 }
 
 // Write adds to its buffers.
 func (w *StdoutWriter) Write(b []byte) (n int, err error) {
-	w.writeMtx.Lock()
-	defer w.writeMtx.Unlock()
-
 	return w.buffer.Write(b)
 }
 
 // Mark a position for partial resets
 func (w *StdoutWriter) Mark() {
-	w.writeMtx.Lock()
-	defer w.writeMtx.Unlock()
-
 	bufferBytes := w.buffer.Bytes()
 
 	// No content mean we need no marker
@@ -55,9 +44,6 @@ func (w *StdoutWriter) Mark() {
 
 // Reset the StdoutWriter to 0
 func (w *StdoutWriter) Reset() {
-	w.writeMtx.Lock()
-	defer w.writeMtx.Unlock()
-
 	w.reset(w.lineBreaks)
 	w.buffer.Reset()
 
@@ -67,9 +53,6 @@ func (w *StdoutWriter) Reset() {
 
 // ResetToMarker reset the StdoutWriter to the marked position
 func (w *StdoutWriter) ResetToMarker() {
-	w.writeMtx.Lock()
-	defer w.writeMtx.Unlock()
-
 	diff := w.lineBreaks - w.preserveLineBreaks
 	w.reset(diff)
 	w.buffer.Reset()
@@ -84,9 +67,6 @@ func (w *StdoutWriter) AddLineBreaks(amount int) {
 
 // Flush writes to os.Stdout out and resets the cursor position and buffer.
 func (w *StdoutWriter) Flush() error {
-	w.writeMtx.Lock()
-	defer w.writeMtx.Unlock()
-
 	bufferBytes := w.buffer.Bytes()
 
 	// do nothing if buffer is empty
@@ -101,14 +81,4 @@ func (w *StdoutWriter) Flush() error {
 	_, err := os.Stdout.Write(bufferBytes)
 	w.buffer.Reset()
 	return err
-}
-
-// Render is a mutex locked helper to reset, write, and flush
-func (w *StdoutWriter) Render(fn func()) {
-	w.renderMtx.Lock()
-	defer w.renderMtx.Unlock()
-
-	w.Reset()
-	fn()
-	w.Flush()
 }
