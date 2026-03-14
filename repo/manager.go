@@ -2,12 +2,12 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path"
 	"sync"
 
 	"github.com/benweidig/tortuga/git"
-	"golang.org/x/sync/errgroup"
 )
 
 // ProgressCallback is called during repository operations to report progress
@@ -113,29 +113,32 @@ func (m *repositoryManagerImpl) UpdateAll(ctx context.Context, progressCallback 
 		progressCallback()
 	}
 
-	// Use errgroup to handle errors from repository operations
-	g := &errgroup.Group{}
+	var (
+		wg   sync.WaitGroup
+		mu   sync.Mutex
+		errs []error
+	)
 
 	for _, r := range repos {
-		g.Go(func() error {
-			err := r.Update(ctx)
+		wg.Go(func() {
+			if err := r.Update(ctx); err != nil {
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
+			}
 			if progressCallback != nil {
 				progressCallback()
 			}
-			return err // This will be collected by errgroup
 		})
 	}
 
-	// Wait for all updates to complete and collect any errors
-	err := g.Wait()
+	wg.Wait()
 
-	// Final render after all operations are complete
 	if progressCallback != nil {
 		progressCallback()
 	}
 
-	// Note: We return the first error encountered, but all repos still get processed
-	return err
+	return errors.Join(errs...)
 }
 
 // SyncAll syncs all repositories that need syncing in parallel
@@ -162,32 +165,34 @@ func (m *repositoryManagerImpl) SyncAll(ctx context.Context, incomingOnly bool, 
 		progressCallback()
 	}
 
-	// Use errgroup to handle errors from repository operations
-	g := &errgroup.Group{}
+	var (
+		wg   sync.WaitGroup
+		mu   sync.Mutex
+		errs []error
+	)
 
 	for _, r := range repos {
-		g.Go(func() error {
-			var err error
+		wg.Go(func() {
 			if r.State == StateNeedsSync {
-				err = r.Sync(ctx, incomingOnly)
+				if err := r.Sync(ctx, incomingOnly); err != nil {
+					mu.Lock()
+					errs = append(errs, err)
+					mu.Unlock()
+				}
 			}
 			if progressCallback != nil {
 				progressCallback()
 			}
-			return err // This will be collected by errgroup
 		})
 	}
 
-	// Wait for all syncs to complete and collect any errors
-	err := g.Wait()
+	wg.Wait()
 
-	// Final render after all operations are complete
 	if progressCallback != nil {
 		progressCallback()
 	}
 
-	// Note: We return the first error encountered, but all repos still get processed
-	return err
+	return errors.Join(errs...)
 }
 
 // TotalIncoming returns the total number of incoming commits across all repositories
