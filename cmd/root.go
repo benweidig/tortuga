@@ -52,25 +52,25 @@ func runCommand(_ *cobra.Command, args []string) {
 
 	fmt.Println()
 	
-	// Create UI renderer and start it
 	w := ui.NewStdoutWriter()
-	renderer := ui.NewUIRenderer(manager, w)
-	
 	ctx := context.Background()
-	renderer.Start(ctx)
-	defer renderer.Stop()
 
-	updateRepositories(manager, renderer)
+	updateRenderer := ui.NewUIRenderer(manager, w)
+	updateRenderer.Start(ctx)
+	updateRepositories(manager, updateRenderer)
+	updateRenderer.Stop() // blocks until final render is done; cursor is now at a stable position
 
 	if !manager.HasChangesToSync() {
-		renderer.Stop()
 		return
 	}
 
 	syncIncomingOnly := promptUserForSyncOptions(manager, w)
 	fmt.Fprintln(w)
 
-	syncRepositories(manager, syncIncomingOnly, renderer)
+	syncRenderer := ui.NewUIRenderer(manager, w)
+	syncRenderer.Start(ctx)
+	syncRepositories(manager, syncIncomingOnly, syncRenderer)
+	syncRenderer.Stop()
 	fmt.Println()
 }
 

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/benweidig/tortuga/repo"
@@ -37,10 +38,11 @@ type channelRenderer struct {
 	renderRequests chan RenderRequest
 	done           chan struct{}
 	started        bool
-	
+	wg             sync.WaitGroup
+
 	// Rate limiting
-	minInterval    time.Duration
-	lastRender     time.Time
+	minInterval time.Duration
+	lastRender  time.Time
 }
 
 // NewUIRenderer creates a new channel-based UI renderer
@@ -60,18 +62,19 @@ func (r *channelRenderer) Start(ctx context.Context) error {
 		return nil
 	}
 	r.started = true
-	
+	r.wg.Add(1)
 	go r.renderLoop(ctx)
 	return nil
 }
 
-// Stop gracefully shuts down the renderer
+// Stop gracefully shuts down the renderer, blocking until the goroutine exits
+// and any pending final render is complete.
 func (r *channelRenderer) Stop() error {
 	if !r.started {
 		return nil
 	}
-	
 	close(r.done)
+	r.wg.Wait()
 	r.started = false
 	return nil
 }
@@ -104,25 +107,36 @@ func (r *channelRenderer) InitialRender(incomingOnly bool) {
 
 // renderLoop is the main rendering goroutine
 func (r *channelRenderer) renderLoop(ctx context.Context) {
-	ticker := time.NewTicker(100 * time.Millisecond) // Periodic render check
+	defer r.wg.Done()
+
+	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
-	
+
 	var pendingRender *RenderRequest
-	
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
-			
+
 		case <-r.done:
-			return
-			
+			// Drain any queued requests and do one final render
+			for {
+				select {
+				case req := <-r.renderRequests:
+					pendingRender = &req
+				default:
+					if pendingRender != nil {
+						r.performRender(pendingRender.IncomingOnly)
+					}
+					return
+				}
+			}
+
 		case req := <-r.renderRequests:
-			// Store the latest render request
 			pendingRender = &req
-			
+
 		case <-ticker.C:
-			// Periodic render if we have a pending request and enough time has passed
 			if pendingRender != nil && time.Since(r.lastRender) >= r.minInterval {
 				r.performRender(pendingRender.IncomingOnly)
 				pendingRender = nil
