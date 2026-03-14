@@ -3,10 +3,12 @@ package cmd
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/benweidig/tortuga/git"
 	"github.com/benweidig/tortuga/repo"
 	"github.com/benweidig/tortuga/ui"
 	"github.com/benweidig/tortuga/version"
@@ -19,6 +21,7 @@ import (
 var (
 	monochromeArg bool
 	yesArg        bool
+	verboseArg    bool
 )
 
 // RootCmd is the only command, so this is Tortuga
@@ -34,6 +37,7 @@ var RootCmd = &cobra.Command{
 func init() {
 	RootCmd.Flags().BoolVarP(&monochromeArg, "monochrome", "m", false, "Monochrome output, no ANSI colorize")
 	RootCmd.Flags().BoolVarP(&yesArg, "yes", "y", false, "Anwser 'Yes' to 'sync' prompt")
+	RootCmd.Flags().BoolVarP(&verboseArg, "verbose", "v", false, "Show verbose error output")
 }
 
 func runCommand(_ *cobra.Command, args []string) {
@@ -180,17 +184,34 @@ func showHelpOptions(w *ui.StdoutWriter) {
 // updateRepositories fetches latest changes for all repositories
 func updateRepositories(manager repo.RepositoryManager, renderer ui.UIRenderer) {
 	ctx := context.Background()
-	// This now blocks until all updates are complete and final render is done
 	if err := manager.UpdateAll(ctx, renderer.RenderProgress(false)); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: Some repositories failed to update: %v\n", err)
+	}
+	if verboseArg {
+		printVerboseErrors(manager)
 	}
 }
 
 // syncRepositories performs sync operations on all repositories
 func syncRepositories(manager repo.RepositoryManager, incomingOnly bool, renderer ui.UIRenderer) {
 	ctx := context.Background()
-	// This now blocks until all syncs are complete and final render is done
 	if err := manager.SyncAll(ctx, incomingOnly, renderer.RenderProgress(incomingOnly)); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: Some repositories failed to sync: %v\n", err)
+	}
+	if verboseArg {
+		printVerboseErrors(manager)
+	}
+}
+
+// printVerboseErrors prints the full git stderr for any failed repositories
+func printVerboseErrors(manager repo.RepositoryManager) {
+	for _, r := range manager.GetRepositories() {
+		if r.Error == nil {
+			continue
+		}
+		var gitErr *git.GitError
+		if errors.As(r.Error, &gitErr) && gitErr.StdErr != "" {
+			fmt.Fprintf(os.Stderr, "\n[%s] %s\n", r.Name, gitErr.StdErr)
+		}
 	}
 }
