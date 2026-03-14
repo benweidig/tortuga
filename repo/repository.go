@@ -44,6 +44,12 @@ func NewRepositoryWithGit(repoPath string, gitImpl git.Git) (*Repository, error)
 	ctx := context.Background()
 	branchInfo, err := r.git.GetBranchInfo(ctx, r.path)
 	if err != nil {
+		if git.IsNoUpstreamError(err) {
+			r.Branch = branchInfo.LocalBranch
+			r.State = StateWarning
+			r.Error = err
+			return r, nil
+		}
 		r.withError(err).Branch = "???"
 		return r, err
 	}
@@ -64,7 +70,7 @@ func (r *Repository) withError(err error) *Repository {
 
 // Update analyzes the current working tree and fetches remote changes
 func (r *Repository) Update(ctx context.Context) error {
-	if r.State == StateError {
+	if r.State == StateError || r.State == StateWarning {
 		return nil
 	}
 
@@ -97,7 +103,7 @@ func (r *Repository) Update(ctx context.Context) error {
 
 // Sync stashes, rebases, pushs and unstashes the Repository
 func (r *Repository) Sync(ctx context.Context, incomingOnly bool) error {
-	if r.State == StateError {
+	if r.State == StateError || r.State == StateWarning {
 		return nil
 	}
 

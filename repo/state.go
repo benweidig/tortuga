@@ -21,4 +21,7 @@ const (
 
 	// StateError indicates any kind of error, the Repository shouldn't do any more actions
 	StateError
+
+	// StateWarning indicates a non-fatal condition (e.g. no upstream configured)
+	StateWarning
 )

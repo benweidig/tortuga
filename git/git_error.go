@@ -2,6 +2,7 @@ package git
 
 import (
 	"bytes"
+	"errors"
 	"strings"
 )
 
@@ -28,6 +29,15 @@ func isAuthError(stderr string) bool {
 
 func isNoUpstreamError(stderr string) bool {
 	return strings.HasPrefix(stderr, "fatal: no upstream")
+}
+
+// IsNoUpstreamError returns true if err is a GitError caused by a missing upstream branch
+func IsNoUpstreamError(err error) bool {
+	var gitErr *GitError
+	if errors.As(err, &gitErr) {
+		return isNoUpstreamError(gitErr.StdErr)
+	}
+	return false
 }
 
 func wrapError(err error, stdErr bytes.Buffer) *GitError {

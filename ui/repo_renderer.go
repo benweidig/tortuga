@@ -50,8 +50,11 @@ func formatRepositoryDisplay(r *repo.Repository, incomingOnly bool) repositoryDi
 
 // formatRepositoryName formats the repository name based on sync status
 func formatRepositoryName(r *repo.Repository) string {
-	if r.State == repo.StateError {
+	switch r.State {
+	case repo.StateError:
 		return gchalk.Red(r.Name)
+	case repo.StateWarning:
+		return chalkYellow.Sprintf("%s", r.Name)
 	}
 	if r.NeedsSync() {
 		return chalkWhite.Bold(r.Name)
@@ -61,8 +64,11 @@ func formatRepositoryName(r *repo.Repository) string {
 
 // formatBranchName formats the branch name based on sync status
 func formatBranchName(r *repo.Repository) string {
-	if r.State == repo.StateError {
+	switch r.State {
+	case repo.StateError:
 		return gchalk.Red(r.Branch)
+	case repo.StateWarning:
+		return chalkYellow.Sprintf("%s", r.Branch)
 	}
 	if r.NeedsSync() {
 		return chalkWhite.Bold(r.Branch)
@@ -79,6 +85,8 @@ func formatRepositoryStatus(r *repo.Repository, incomingOnly bool) string {
 		return formatSyncedStatus(r, incomingOnly)
 	case repo.StateError:
 		return gchalk.Red(r.Error.Error())
+	case repo.StateWarning:
+		return chalkYellow.Sprintf("%s", r.Error.Error())
 	default:
 		return gchalk.Gray("...")
 	}
