@@ -57,10 +57,13 @@ func runCommand(_ *cobra.Command, args []string) {
 
 	updateRenderer := ui.NewUIRenderer(manager, w)
 	updateRenderer.Start(ctx)
-	updateRepositories(manager, updateRenderer)
+	failed := updateRepositories(manager, updateRenderer)
 	updateRenderer.Stop() // blocks until final render is done; cursor is now at a stable position
 
 	if !manager.HasChangesToSync() {
+		if failed {
+			os.Exit(1)
+		}
 		return
 	}
 
@@ -69,9 +72,13 @@ func runCommand(_ *cobra.Command, args []string) {
 
 	syncRenderer := ui.NewUIRenderer(manager, w)
 	syncRenderer.Start(ctx)
-	syncRepositories(manager, syncIncomingOnly, syncRenderer)
+	failed = syncRepositories(manager, syncIncomingOnly, syncRenderer) || failed
 	syncRenderer.Stop()
 	fmt.Println()
+
+	if failed {
+		os.Exit(1)
+	}
 }
 
 // determineBasePath returns the target directory from args or current working directory
@@ -181,26 +188,30 @@ func showHelpOptions(w *ui.StdoutWriter) {
 	fmt.Fprintln(w)
 }
 
-// updateRepositories fetches latest changes for all repositories
-func updateRepositories(manager repo.RepositoryManager, renderer ui.UIRenderer) {
+// updateRepositories fetches latest changes for all repositories, returning true if any failed
+func updateRepositories(manager repo.RepositoryManager, renderer ui.UIRenderer) bool {
 	ctx := context.Background()
-	if err := manager.UpdateAll(ctx, renderer.RenderProgress(false)); err != nil {
+	err := manager.UpdateAll(ctx, renderer.RenderProgress(false))
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: Some repositories failed to update: %v\n", err)
 	}
 	if verboseArg {
 		printVerboseErrors(manager)
 	}
+	return err != nil
 }
 
-// syncRepositories performs sync operations on all repositories
-func syncRepositories(manager repo.RepositoryManager, incomingOnly bool, renderer ui.UIRenderer) {
+// syncRepositories performs sync operations on all repositories, returning true if any failed
+func syncRepositories(manager repo.RepositoryManager, incomingOnly bool, renderer ui.UIRenderer) bool {
 	ctx := context.Background()
-	if err := manager.SyncAll(ctx, incomingOnly, renderer.RenderProgress(incomingOnly)); err != nil {
+	err := manager.SyncAll(ctx, incomingOnly, renderer.RenderProgress(incomingOnly))
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: Some repositories failed to sync: %v\n", err)
 	}
 	if verboseArg {
 		printVerboseErrors(manager)
 	}
+	return err != nil
 }
 
 // printVerboseErrors prints the full git stderr for any failed repositories
