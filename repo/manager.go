@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path"
+	"path/filepath"
 	"sync"
 
 	"github.com/benweidig/tortuga/git"
@@ -48,6 +49,18 @@ func NewManager() RepositoryManager {
 	}
 }
 
+// findParentRepo walks up the directory tree from startPath looking for a git repo root
+func findParentRepo(g git.Git, startPath string) string {
+	current := filepath.Dir(startPath)
+	for current != filepath.Dir(current) {
+		if g.IsRepo(current) {
+			return current
+		}
+		current = filepath.Dir(current)
+	}
+	return ""
+}
+
 // Discover finds all repositories in the given path
 func (m *repositoryManagerImpl) Discover(basePath string) error {
 	m.mu.Lock()
@@ -57,6 +70,15 @@ func (m *repositoryManagerImpl) Discover(basePath string) error {
 
 	if m.git.IsRepo(basePath) {
 		r, err := NewRepositoryWithGit(basePath, m.git)
+		if err != nil {
+			return err
+		}
+		m.repositories = append(m.repositories, r)
+		return nil
+	}
+
+	if parentPath := findParentRepo(m.git, basePath); parentPath != "" {
+		r, err := NewRepositoryWithGit(parentPath, m.git)
 		if err != nil {
 			return err
 		}
