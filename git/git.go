@@ -2,6 +2,7 @@ package git
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -23,10 +24,10 @@ func IsRepo(basePath string) bool {
 	return err == nil && stat.IsDir()
 }
 
-func git(repoPath string, args ...string) (bytes.Buffer, error) {
+func git(ctx context.Context, repoPath string, args ...string) (bytes.Buffer, error) {
 	// Combine args and build command
 	args = append([]string{"-C", repoPath}, args...)
-	cmd := exec.Command("git", args...)
+	cmd := exec.CommandContext(ctx, "git", args...)
 
 	// Set environment to disable terminal prompting (thread-safe)
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
@@ -47,8 +48,8 @@ func git(repoPath string, args ...string) (bytes.Buffer, error) {
 }
 
 // LocalBranch returns the local branch name of the current HEAD
-func LocalBranch(repoPath string) (string, error) {
-	stdOut, err := git(repoPath, "rev-parse", "--abbrev-ref", "HEAD")
+func LocalBranch(ctx context.Context, repoPath string) (string, error) {
+	stdOut, err := git(ctx, repoPath, "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
 		return "", err
 	}
@@ -64,8 +65,8 @@ func LocalBranch(repoPath string) (string, error) {
 }
 
 // UpstreamBranch returns the name of the upstream branch
-func UpstreamBranch(repoPath string) (string, error) {
-	stdOut, err := git(repoPath, "rev-parse", "--symbolic-full-name", "--abbrev-ref", "@{u}")
+func UpstreamBranch(ctx context.Context, repoPath string) (string, error) {
+	stdOut, err := git(ctx, repoPath, "rev-parse", "--symbolic-full-name", "--abbrev-ref", "@{u}")
 	if err != nil {
 		return "", err
 	}
@@ -76,8 +77,8 @@ func UpstreamBranch(repoPath string) (string, error) {
 	return branch, nil
 }
 
-func RevList(repoPath string, rangeSpecifier string) ([]string, error) {
-	stdOut, err := git(repoPath, "rev-list", rangeSpecifier)
+func RevList(ctx context.Context, repoPath string, rangeSpecifier string) ([]string, error) {
+	stdOut, err := git(ctx, repoPath, "rev-list", rangeSpecifier)
 	if err != nil {
 		return []string{}, err
 	}
@@ -90,48 +91,48 @@ func RevList(repoPath string, rangeSpecifier string) ([]string, error) {
 }
 
 // Incoming counts the incoming commits (head vs upstream)
-func Incoming(repoPath string, branch string) (int, error) {
-	commits, err := RevList(repoPath, fmt.Sprintf("HEAD..%s@{upstream}", branch))
+func Incoming(ctx context.Context, repoPath string, branch string) (int, error) {
+	commits, err := RevList(ctx, repoPath, fmt.Sprintf("HEAD..%s@{upstream}", branch))
 	return len(commits), err
 }
 
 // Outgoing counts the outgoing commits (push vs head)
-func Outgoing(repoPath string, branch string) (int, error) {
-	commits, err := RevList(repoPath, fmt.Sprintf("%s@{push}..HEAD", branch))
+func Outgoing(ctx context.Context, repoPath string, branch string) (int, error) {
+	commits, err := RevList(ctx, repoPath, fmt.Sprintf("%s@{push}..HEAD", branch))
 	return len(commits), err
 }
 
 // Fetch fetches the specified remote
-func Fetch(repoPath string, remote string) error {
-	_, err := git(repoPath, "fetch", remote)
+func Fetch(ctx context.Context, repoPath string, remote string) error {
+	_, err := git(ctx, repoPath, "fetch", remote)
 	return err
 }
 
 // Status returns a parseable (--porcelain) status
-func Status(repoPath string) (bytes.Buffer, error) {
-	return git(repoPath, "status", "--porcelain")
+func Status(ctx context.Context, repoPath string) (bytes.Buffer, error) {
+	return git(ctx, repoPath, "status", "--porcelain")
 }
 
 // Rebase tries to rebase the current working tree with the upstream
-func Rebase(repoPath string) error {
-	_, err := git(repoPath, "rebase", "@{u}")
+func Rebase(ctx context.Context, repoPath string) error {
+	_, err := git(ctx, repoPath, "rebase", "@{u}")
 	return err
 }
 
 // Push pushes the repository to the remote
-func Push(repoPath string) error {
-	_, err := git(repoPath, "push")
+func Push(ctx context.Context, repoPath string) error {
+	_, err := git(ctx, repoPath, "push")
 	return err
 }
 
 // Stash stashes the current working tree
-func StashSave(repoPath string) error {
-	_, err := git(repoPath, "stash", "save")
+func StashSave(ctx context.Context, repoPath string) error {
+	_, err := git(ctx, repoPath, "stash", "save")
 	return err
 }
 
 // StashPop pops the last stash
-func StashPop(repoPath string) error {
-	_, err := git(repoPath, "stash", "pop")
+func StashPop(ctx context.Context, repoPath string) error {
+	_, err := git(ctx, repoPath, "stash", "pop")
 	return err
 }

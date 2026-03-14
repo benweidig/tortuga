@@ -18,13 +18,13 @@ func (g *gitImpl) IsRepo(path string) bool {
 func (g *gitImpl) GetBranchInfo(ctx context.Context, repoPath string) (BranchInfo, error) {
 	var info BranchInfo
 
-	localBranch, err := LocalBranch(repoPath)
+	localBranch, err := LocalBranch(ctx, repoPath)
 	if err != nil {
 		return info, err
 	}
 	info.LocalBranch = localBranch
 
-	upstreamBranch, err := UpstreamBranch(repoPath)
+	upstreamBranch, err := UpstreamBranch(ctx, repoPath)
 	if err != nil {
 		return info, err
 	}
@@ -42,7 +42,7 @@ func (g *gitImpl) GetBranchInfo(ctx context.Context, repoPath string) (BranchInf
 func (g *gitImpl) GetStatus(ctx context.Context, repoPath string) (StatusInfo, error) {
 	var info StatusInfo
 
-	status, err := Status(repoPath)
+	status, err := Status(ctx, repoPath)
 	if err != nil {
 		return info, err
 	}
@@ -76,13 +76,13 @@ func (g *gitImpl) GetStatus(ctx context.Context, repoPath string) (StatusInfo, e
 func (g *gitImpl) GetSyncInfo(ctx context.Context, repoPath string, branch string) (SyncInfo, error) {
 	var info SyncInfo
 
-	incoming, err := Incoming(repoPath, branch)
+	incoming, err := Incoming(ctx, repoPath, branch)
 	if err != nil {
 		return info, err
 	}
 	info.IncomingCommits = incoming
 
-	outgoing, err := Outgoing(repoPath, branch)
+	outgoing, err := Outgoing(ctx, repoPath, branch)
 	if err != nil {
 		return info, err
 	}
@@ -95,25 +95,25 @@ func (g *gitImpl) GetSyncInfo(ctx context.Context, repoPath string, branch strin
 
 // Fetch fetches from the specified remote
 func (g *gitImpl) Fetch(ctx context.Context, repoPath string, remote string) error {
-	return Fetch(repoPath, remote)
+	return Fetch(ctx, repoPath, remote)
 }
 
 // Rebase rebases the current branch with upstream
 func (g *gitImpl) Rebase(ctx context.Context, repoPath string) error {
-	return Rebase(repoPath)
+	return Rebase(ctx, repoPath)
 }
 
 // Push pushes the current branch to remote
 func (g *gitImpl) Push(ctx context.Context, repoPath string) error {
-	return Push(repoPath)
+	return Push(ctx, repoPath)
 }
 
 // StashSave stashes current changes
 func (g *gitImpl) StashSave(ctx context.Context, repoPath string) error {
-	return StashSave(repoPath)
+	return StashSave(ctx, repoPath)
 }
 
 // StashPop pops the last stash
 func (g *gitImpl) StashPop(ctx context.Context, repoPath string) error {
-	return StashPop(repoPath)
+	return StashPop(ctx, repoPath)
 }

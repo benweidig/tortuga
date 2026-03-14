@@ -119,7 +119,7 @@ func (m *repositoryManagerImpl) UpdateAll(ctx context.Context, progressCallback 
 	for _, r := range repos {
 		r := r // capture loop variable
 		g.Go(func() error {
-			err := r.Update()
+			err := r.Update(ctx)
 			if progressCallback != nil {
 				progressCallback()
 			}
@@ -171,7 +171,7 @@ func (m *repositoryManagerImpl) SyncAll(ctx context.Context, incomingOnly bool, 
 		g.Go(func() error {
 			var err error
 			if r.State == StateNeedsSync {
-				err = r.Sync(incomingOnly)
+				err = r.Sync(ctx, incomingOnly)
 			}
 			if progressCallback != nil {
 				progressCallback()

@@ -63,12 +63,10 @@ func (r *Repository) withError(err error) *Repository {
 }
 
 // Update analyzes the current working tree and fetches remote changes
-func (r *Repository) Update() error {
+func (r *Repository) Update(ctx context.Context) error {
 	if r.State == StateError {
 		return nil
 	}
-
-	ctx := context.Background()
 
 	// Get status information
 	statusInfo, err := r.git.GetStatus(ctx, r.path)
@@ -98,12 +96,10 @@ func (r *Repository) Update() error {
 }
 
 // Sync stashes, rebases, pushs and unstashes the Repository
-func (r *Repository) Sync(incomingOnly bool) error {
+func (r *Repository) Sync(ctx context.Context, incomingOnly bool) error {
 	if r.State == StateError {
 		return nil
 	}
-
-	ctx := context.Background()
 
 	errorReturn := func(err error) error {
 		if r.stashed {
