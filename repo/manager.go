@@ -10,6 +10,9 @@ import (
 	"github.com/benweidig/tortuga/git"
 )
 
+// maxConcurrency limits the number of repositories operated on simultaneously
+const maxConcurrency = 8
+
 // ProgressCallback is called during repository operations to report progress
 type ProgressCallback func()
 
@@ -117,10 +120,13 @@ func (m *repositoryManagerImpl) UpdateAll(ctx context.Context, progressCallback 
 		wg   sync.WaitGroup
 		mu   sync.Mutex
 		errs []error
+		sem  = make(chan struct{}, maxConcurrency)
 	)
 
 	for _, r := range repos {
 		wg.Go(func() {
+			sem <- struct{}{}
+			defer func() { <-sem }()
 			if err := r.Update(ctx); err != nil {
 				mu.Lock()
 				errs = append(errs, err)
@@ -169,10 +175,13 @@ func (m *repositoryManagerImpl) SyncAll(ctx context.Context, incomingOnly bool, 
 		wg   sync.WaitGroup
 		mu   sync.Mutex
 		errs []error
+		sem  = make(chan struct{}, maxConcurrency)
 	)
 
 	for _, r := range repos {
 		wg.Go(func() {
+			sem <- struct{}{}
+			defer func() { <-sem }()
 			if r.State == StateNeedsSync {
 				if err := r.Sync(ctx, incomingOnly); err != nil {
 					mu.Lock()
