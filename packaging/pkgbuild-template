@@ -8,8 +8,8 @@ url="https://REPO_URL"
 license=('MIT')
 provides=('tt')
 
-source_x86_64=("https://REPO_URL/releases/download/v${pkgver}/tortuga-${pkgver}_linux_amd64.tar.gz")
-source_aarch64=("https://REPO_URL/releases/download/v${pkgver}/tortuga-${pkgver}_linux_arm64.tar.gz")
+source_x86_64=("https://REPO/releases/download/v${pkgver}/tortuga-${pkgver}_linux_amd64.tar.gz")
+source_aarch64=("https://REPO/releases/download/v${pkgver}/tortuga-${pkgver}_linux_arm64.tar.gz")
 sha256sums_x86_64=('SHA256_AMD64')
 sha256sums_aarch64=('SHA256_ARM64')
 

@@ -1,6 +1,5 @@
 BINARY      := tt
 REPO        := github.com/benweidig/tortuga
-REPO_URL    := https://$(REPO)
 PROJECT     := tortuga
 DESC        := CLI tool for fetching/pushing/rebasing multiple git repositories at once
 MAINTAINER  := Ben Weidig <ben+tortuga@netzgut.net>
@@ -132,14 +131,14 @@ release-linux:
 release-formula:
 	@SUM_AMD64=$$(sha256sum $(RELEASE_FOLDER)/$(VERSION_FOLDER)_darwin_amd64.tar.gz | awk '{print $$1}'); \
 	 SUM_ARM64=$$(sha256sum $(RELEASE_FOLDER)/$(VERSION_FOLDER)_darwin_arm64.tar.gz | awk '{print $$1}'); \
-	 sed "s|REPO_URL|$(REPO_URL)|g; s/FORMULA_VERSION/$(VERSION)/g; s|DESCRIPTION|$(DESC)|g; s/SHA256_DARWIN_AMD64/$$SUM_AMD64/; s/SHA256_DARWIN_ARM64/$$SUM_ARM64/" \
+	 sed "s|REPO|$(REPO)|g; s/FORMULA_VERSION/$(VERSION)/g; s|DESCRIPTION|$(DESC)|g; s/SHA256_DARWIN_AMD64/$$SUM_AMD64/; s/SHA256_DARWIN_ARM64/$$SUM_ARM64/" \
 	     $(TMPL_DIR)/formula-template.rb > $(RELEASE_FOLDER)/tortuga.rb
 
 .PHONY: release-aur
 release-aur:
 	@SUM_AMD64=$$(sha256sum $(RELEASE_FOLDER)/$(VERSION_FOLDER)_linux_amd64.tar.gz | awk '{print $$1}'); \
 	 SUM_ARM64=$$(sha256sum $(RELEASE_FOLDER)/$(VERSION_FOLDER)_linux_arm64.tar.gz | awk '{print $$1}'); \
-	 sed "s|REPO_URL|$(REPO_URL)|g; s/PKG_NAME/$(PROJECT)-bin/g; s/PKG_VERSION/$(VERSION)/g; s|DESCRIPTION|$(DESC)|g; s|MAINTAINER|$(MAINTAINER)|g; s/SHA256_AMD64/$$SUM_AMD64/; s/SHA256_ARM64/$$SUM_ARM64/" \
+	 sed "s|REPO|$(REPO)|g; s/PKG_NAME/$(PROJECT)-bin/g; s/PKG_VERSION/$(VERSION)/g; s|DESCRIPTION|$(DESC)|g; s|MAINTAINER|$(MAINTAINER)|g; s/SHA256_AMD64/$$SUM_AMD64/; s/SHA256_ARM64/$$SUM_ARM64/" \
 	     $(TMPL_DIR)/pkgbuild-template > $(RELEASE_FOLDER)/PKGBUILD
 
 .PHONY: release
