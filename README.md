@@ -9,36 +9,37 @@ It can fetch, rebase, and push changes across all your repositories with a singl
 
 ![Tortuga Mascot](mascot.png)  
 
-## ✨ Features
-
-*   **🚀 Parallel Operations**:
-     Process multiple repositories concurrently for maximum speed
-
-*   **📊 Real-time Progress**:
-    Live updates showing the status of each repository
-
-*   **🔄 Smart Sync Options**:
-    Choose between full sync or incoming-only updates
-
-*   **🎨 Beautiful Output**:
-    Color-coded status with clear visual indicators
-
-*   **⚡ Thread-safe**:
-    Modern Go concurrency patterns with channels and errgroup
-
-*   **🛡️ Error Resilient**:
-    Continue processing even if some repositories fail
-
-*   **🌈 Color Support**:
-    Respects terminal capabilities and `NO_COLOR` standard
+The name comes from the [West Indian island "Tortuga"](https://en.wikipedia.org/wiki/Tortuga_(Haiti)) (turtle island), which was a major center and haven of Caribbean piracy, hence the mascot.
 
 ---
 
-## 🚀 Quick Start
+## Features
 
-### Installation
+*   **Parallel Operations**:\
+     Process multiple repositories concurrently for maximum speed.
+     Five by default, controllable via flag.
 
-**macOS (Homebrew):**
+*   **Real-time Progress**:\
+    Live updates showing the status of each repository as it gathers them.
+
+*   **Smart Sync Options**:
+    Choose between full sync or incoming-only updates.
+
+*   **Colors**:
+    Color-coded status with clear visual indicators.
+    Can be disabled, and the tool respect `NO_COLOR`.
+
+*   **Thread-safe**:
+    Modern Go concurrency patterns with channels and errgroup
+
+*   **Best-erffort**:
+    Continue processing even if some repositories fail.
+
+---
+
+## Installation
+
+### macOS (Homebrew)
 
 ```bash
 brew install benweidig/homebrew-tap/tortuga
@@ -50,12 +51,17 @@ brew install benweidig/homebrew-tap/tortuga
 go install github.com/benweidig/tortuga@latest
 ```
 
+### Linux
+
 **Pre-built Binaries:**
 
 Download from [releases](https://github.com/benweidig/tortuga/releases) or use the provided `.deb` packages for Debian/Ubuntu.
 
+AUR package is work in progress.
 
-### Basic Usage
+---
+
+## How to Use
 
 ```bash
 # Check all repositories in current directory
@@ -66,53 +72,57 @@ tt /path/to/my/projects
 
 # Auto-sync all changes without prompting
 tt --yes
-
-# Use monochrome output (no colors)
-tt --monochrome
 ```
 
 ---
 
-## 📖 How It Works
+## How It Works
 
-1.  **Discovery**:
-    Tortuga scans the target directory for Git repositories
+1.  **Discovery**:\
+    Tortuga scans the target directory according to a specific order:
+    *   Root is itself a git repo
+    *   Direct children of root are git repos
+    *   Walk upward from root to find a parent repo
 
-2.  **Fetch**:
+2.  **Fetch**:\
     Parallel fetch from all remotes to check for updates
 
 3.  **Status Display**:
     Real-time status showing incoming/outgoing commits and local changes
 
 4.  **Interactive Sync**: Choose your sync strategy:
-    *   `y` - Full sync (stash → pull+rebase → push)
-    *   `i` - Incoming only (stash → pull+rebase)
-    *   `n` - No sync (just show status)
+    *   `y`: Full sync (stash, pull+rebase, push, unstash)
+    *   `i`: Incoming only (stash, pull+rebase, unstash)
+    *   `n`: No sync (just show status)
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 ### Command Line Options
 
-| Flag               | Short | Description                               |
-| ------------------ | ----- | ----------------------------------------- |
-| `--monochrome`     | `-m`  | Disable ANSI colors                       |
-| `--yes`            | `-y`  | Automatically accept sync prompts         |
-| `--verbose`        | `-v`  | Show verbose error output                 |
+| Flag           | Short | Description                                 |
+| -------------- | ----- | ------------------------------------------- |
+| `--monochrome` | `-m`  | Disable ANSI colors                         |
+| `--yes`        | `-y`  | Automatically accept sync prompts           |
+| `--no`         | `-n`  | Fetch only (default if stdout is not a TTY) |
+| `--jobs`       | `-j`  | Max. concurrent Git operations (default: 5) |
+| `--help`       | `-h`  | Display help                                |
+| `--version`    |       | Show version                                |
 
 ### Git Credentials
 
-Tortuga performs operations asynchronously across multiple repositories, so it cannot prompt for credentials interactively.
+Tortuga performs operations asynchronously across multiple repositories, so it _cannot_ prompt for credentials interactively.
+
 Ensure your Git credentials are configured via:
 
-*   **SSH Keys**:
+*   **SSH Keys**:\
     Recommended for seamless authentication
 
-*   **Git Credential Helper**:
+*   **Git Credential Helper**:\
     `git config credential.helper store`
 
-*   **Git Credential Cache**:
+*   **Git Credential Cache**:\
     `git config credential.helper cache`
 
 ### Color Support
@@ -125,23 +135,11 @@ Colors are automatically detected and disabled when:
 
 ---
 
-## 🏗️ Architecture
-
-Tortuga is built with modern Go patterns:
-
-- **Channel-based rendering**: Thread-safe UI updates without mutexes
-- **errgroup**: Proper error handling in concurrent operations  
-- **Repository Manager**: Clean abstraction for batch operations
-- **Git Interface**: Mockable Git operations for testing
-- **Structured Types**: Type-safe data structures instead of raw parsing
-
----
-
-## 🔧 Building from Source
+## Building from Source
 
 ### Requirements
 
-Go 1.24 or later
+Tested on Go 1.26.1
 
 ### Build
 
@@ -163,11 +161,24 @@ make staticcheck  # Run staticcheck (if installed)
 
 ---
 
-## 📄 License
+## AI Disclosure
+
+This project originated as a 100% human project, as AI wasn't prevalent at the time.
+I'm not a Go developer by trade, so I use AI as a _co-developer_ for assistance.
+
+It's still human architecture decisions, with AI filling the gaps I'm not well versed in.
+Brainstorming, proof-of-concepts, lending a hand with writing unit tests, or code review are areas where AI can effectively help.
+But nothing beats a final human review to refine, and most importantly, to verify.
+
+---
+
+## License
 
 MIT. See [LICENSE](LICENSE).
 
-## 🙏 Acknowledgments
+---
+
+## Acknowledgments
 
 *   Mascot design [based on Gopherize.me](https://gopherize.me/gopher/79e06dc4b7a8669c8aa0d6381af7f02f5474e3b7)
 
@@ -175,20 +186,11 @@ MIT. See [LICENSE](LICENSE).
 
 *   Original UI inspiration from [gosuri/uilive](https://github.com/gosuri/uilive) (MIT License)
 
-## 🤝 Contributing
+---
 
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+## Contributing
 
-### Development Setup
+Contributions are welcome!
 
-1.  Fork the repository
-
-2.  Create your feature branch (`git checkout -b feature/amazing-feature`)
-
-3.  Run tests (`make test`)
-
-4.  Commit your changes (`git commit -m 'Add amazing feature'`)
-
-5.  Push to the branch (`git push origin feature/amazing-feature`)
-
-6.  Open a Pull Request
+Please feel free to submit a Pull Request.
+For major changes, please open an issue first to discuss what you would like to change.

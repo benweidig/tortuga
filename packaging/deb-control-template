@@ -1,0 +1,5 @@
+Package: PKG_NAME
+Version: PKG_VERSION
+Maintainer: MAINTAINER
+Architecture: ARCH
+Description: DESCRIPTION

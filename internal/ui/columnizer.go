@@ -1,3 +1,5 @@
+// Package ui handles all terminal output: the live table renderer, the
+// interactive sync prompt, and the spinner ticker that drives partial redraws.
 package ui
 
 import (
@@ -7,11 +9,18 @@ import (
 	"github.com/mattn/go-runewidth"
 )
 
+// columnizer builds a left-aligned, pipe-separated table whose column widths
+// are computed from the content. ANSI escape sequences are stripped before
+// measuring so styled text aligns correctly.
 type columnizer struct {
-	rows []*columnizerRow
+	rows      []*columnizerRow
+	minWidths []int
 }
 
-// newColumnizer creates a new table
+func (t *columnizer) setMinWidths(widths []int) {
+	t.minWidths = widths
+}
+
 func newColumnizer() *columnizer {
 	return &columnizer{}
 }
@@ -19,6 +28,28 @@ func newColumnizer() *columnizer {
 func (t *columnizer) AddRow(contents ...string) {
 	row := newColumnizerRow(contents...)
 	t.rows = append(t.rows, row)
+}
+
+// columnWidths returns the effective width of each column, incorporating any
+// minimums set via setMinWidths.
+func (t *columnizer) columnWidths() []int {
+	var widths []int
+	for _, row := range t.rows {
+		for i, cell := range row.cells {
+			if i+1 > len(widths) {
+				widths = append(widths, 0)
+			}
+			if cell.displayWidth > widths[i] {
+				widths[i] = cell.displayWidth
+			}
+		}
+	}
+	for i := range min(len(t.minWidths), len(widths)) {
+		if t.minWidths[i] > widths[i] {
+			widths[i] = t.minWidths[i]
+		}
+	}
+	return widths
 }
 
 // String returns string representation of the table
@@ -29,29 +60,14 @@ func (t *columnizer) String() string {
 		return ""
 	}
 
-	// Determinate the width of each column
-	var colWidths []int
-	for _, row := range t.rows {
-		for i, cell := range row.cells {
-			if i+1 > len(colWidths) {
-				colWidths = append(colWidths, 0)
-			}
+	colWidths := t.columnWidths()
 
-			if cell.displayWidth > colWidths[i] {
-				colWidths[i] = cell.displayWidth
-			}
-		}
-	}
-
-	// Remove outer border
+	// All columns except the last get a trailing " │ " separator.
 	cols := len(colWidths)
-	borderedCols := cols
-	borderedCols--
+	borderedCols := cols - 1
 
-	// Holds the string representation of the table
 	var builder strings.Builder
 
-	// Build table data
 	for _, row := range t.rows {
 		for colIdx := range cols {
 			colWidth := colWidths[colIdx]
