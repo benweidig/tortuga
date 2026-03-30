@@ -291,7 +291,7 @@ func (r *Renderer) workStatusCell(repo model.Repo, spinnerFrame string) string {
 
 	switch repo.WorkStatus {
 	case model.WorkDone:
-		return r.output.String("✓").Foreground(termenv.ANSIGreen).Faint().String()
+		return r.output.String("✓").Foreground(termenv.ANSIGreen).String()
 	case model.WorkError:
 		return r.output.String("error").Foreground(termenv.ANSIRed).String()
 	default:
