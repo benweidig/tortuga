@@ -183,10 +183,12 @@ func Push(path string) *model.GitError {
 // StashPop restores the most recent stash entry. If a conflict occurs the
 // working tree is left in a conflicted state and the stash entry is kept.
 func StashPop(path string) *model.GitError {
-	_, stderr, err := runGit(path, "stash", "pop")
+	stdout, stderr, err := runGit(path, "stash", "pop")
 
 	if err != nil {
-		return ClassifyError(stderr, "stash pop")
+		// git stash pop writes CONFLICT lines to stdout, not stderr, so combine
+		// both to ensure ClassifyError can match the conflict pattern.
+		return ClassifyError(stdout+"\n"+stderr, "stash pop")
 	}
 
 	return nil
