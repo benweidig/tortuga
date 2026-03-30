@@ -54,7 +54,7 @@ func RunFetchPhase(repos []model.Repo, sem chan struct{}, renderer *Renderer) ([
 	// returns but before renderer.Render below, overwriting the final frame.
 	spinnerWg.Wait()
 
-	renderer.Render(repos, "")
+	renderer.RenderFull(repos)
 	renderer.RenderErrors(repos)
 
 	return repos, nil

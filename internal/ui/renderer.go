@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strings"
 
@@ -50,6 +51,17 @@ func (r *Renderer) Render(repos []model.Repo, spinnerFrame string) {
 	r.lastWidth = width
 
 	r.renderTable(repos, spinnerFrame, height)
+	r.writer.Flush()
+	r.hasContent = true
+}
+
+// RenderFull resets the previous output and draws the complete table without
+// height-based truncation.
+func (r *Renderer) RenderFull(repos []model.Repo) {
+	if r.hasContent {
+		r.writer.Reset()
+	}
+	r.renderTable(repos, "", math.MaxInt)
 	r.writer.Flush()
 	r.hasContent = true
 }
@@ -105,10 +117,7 @@ func (r *Renderer) renderTable(repos []model.Repo, spinnerFrame string, termHeig
 
 	// Reserve rows for: header + potential "... and N more" line.
 	const reservedRows = 2
-	maxRepoRows := termHeight - reservedRows
-	if maxRepoRows < 1 {
-		maxRepoRows = 1
-	}
+	maxRepoRows := max(termHeight-reservedRows, 1)
 
 	visible := repos
 	truncated := 0
@@ -281,20 +290,13 @@ func (r *Renderer) workStatusCell(repo model.Repo, spinnerFrame string) string {
 	}
 
 	switch repo.WorkStatus {
-	case model.WorkStashing:
-		return spin + " stashing"
-	case model.WorkPulling:
-		return spin + " pulling"
-	case model.WorkPushing:
-		return spin + " pushing"
-	case model.WorkUnstashing:
-		return spin + " unstashing"
 	case model.WorkDone:
 		return r.output.String("✓").Foreground(termenv.ANSIGreen).Faint().String()
 	case model.WorkError:
 		return r.output.String("error").Foreground(termenv.ANSIRed).String()
+	default:
+		return spin
 	}
-	return ""
 }
 
 func (r *Renderer) buildDoneStatus(repo model.Repo) string {

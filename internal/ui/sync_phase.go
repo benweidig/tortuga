@@ -154,6 +154,6 @@ func RunSyncPhase(repos []model.Repo, action Action, sem chan struct{}, renderer
 	// Must wait for the spinner goroutine to exit before the final render.
 	spinnerWg.Wait()
 
-	renderer.Render(repos, "")
+	renderer.RenderFull(repos)
 	renderer.RenderErrors(repos)
 }
