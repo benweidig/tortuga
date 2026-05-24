@@ -105,6 +105,7 @@ tt --yes
 | ----------------- | ----- | ----------------------------------------------- |
 | `--monochrome`    | `-m`  | Disable ANSI colors                             |
 | `--yes`           | `-y`  | Automatically accept sync prompts               |
+| `--incoming-only` | `-i`  | Skip prompt, pull+rebase only (no push)         |
 | `--no`            | `-n`  | Fetch only (default if stdout is not a TTY)     |
 | `--jobs`          | `-j`  | Max. concurrent Git operations (default: 5)     |
 | `--no-ignores`    |       | Include repos that have a `.tortugaignore` file |

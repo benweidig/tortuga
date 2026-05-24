@@ -18,7 +18,7 @@ func TestParseConfig_Defaults(t *testing.T) {
 	if cfg.Jobs != 5 {
 		t.Errorf("expected Jobs=5, got %d", cfg.Jobs)
 	}
-	if cfg.Monochrome || cfg.AutoYes || cfg.AutoNo || cfg.NoIgnores {
+	if cfg.Monochrome || cfg.AutoYes || cfg.AutoIncoming || cfg.AutoNo || cfg.NoIgnores {
 		t.Error("expected all bool flags false by default")
 	}
 }
@@ -65,10 +65,42 @@ func TestParseConfig_DirectoryArg(t *testing.T) {
 	}
 }
 
+func TestParseConfig_IncomingOnly(t *testing.T) {
+	cfg, err := parseConfig([]string{"-i"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.AutoIncoming {
+		t.Error("expected AutoIncoming=true for -i")
+	}
+
+	cfg, err = parseConfig([]string{"--incoming-only"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.AutoIncoming {
+		t.Error("expected AutoIncoming=true for --incoming-only")
+	}
+}
+
 func TestParseConfig_Conflict(t *testing.T) {
 	_, err := parseConfig([]string{"-y", "-n"})
 	if err == nil {
 		t.Fatal("expected error for -y -n conflict")
+	}
+}
+
+func TestParseConfig_Conflict_YI(t *testing.T) {
+	_, err := parseConfig([]string{"-y", "-i"})
+	if err == nil {
+		t.Fatal("expected error for -y -i conflict")
+	}
+}
+
+func TestParseConfig_Conflict_IN(t *testing.T) {
+	_, err := parseConfig([]string{"-i", "-n"})
+	if err == nil {
+		t.Fatal("expected error for -i -n conflict")
 	}
 }
 

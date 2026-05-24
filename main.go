@@ -19,12 +19,13 @@ import (
 )
 
 type Config struct {
-	Dir        string
-	Monochrome bool
-	AutoYes    bool
-	AutoNo     bool
-	Jobs       int
-	NoIgnores  bool
+	Dir          string
+	Monochrome   bool
+	AutoYes      bool
+	AutoIncoming bool
+	AutoNo       bool
+	Jobs         int
+	NoIgnores    bool
 }
 
 func parseConfig(args []string) (Config, error) {
@@ -43,6 +44,8 @@ func parseConfig(args []string) (Config, error) {
 	fs.BoolVar(&cfg.Monochrome, "monochrome", false, "disable colors")
 	fs.BoolVar(&cfg.AutoYes, "y", false, "")
 	fs.BoolVar(&cfg.AutoYes, "yes", false, "skip prompt and sync")
+	fs.BoolVar(&cfg.AutoIncoming, "i", false, "")
+	fs.BoolVar(&cfg.AutoIncoming, "incoming-only", false, "skip prompt, pull+rebase only (no push)")
 	fs.BoolVar(&cfg.AutoNo, "n", false, "")
 	fs.BoolVar(&cfg.AutoNo, "no", false, "fetch only, no changes")
 	fs.IntVar(&cfg.Jobs, "j", 5, "")
@@ -58,6 +61,7 @@ func parseConfig(args []string) (Config, error) {
 		fmt.Fprintf(os.Stderr, "Flags:\n")
 		fmt.Fprintf(os.Stderr, "  -m, --monochrome     disable colors\n")
 		fmt.Fprintf(os.Stderr, "  -y, --yes            skip prompt and sync\n")
+		fmt.Fprintf(os.Stderr, "  -i, --incoming-only  skip prompt, pull+rebase only (no push)\n")
 		fmt.Fprintf(os.Stderr, "  -n, --no             fetch only, no changes\n")
 		fmt.Fprintf(os.Stderr, "  -j, --jobs N         max concurrent git operations (default 5)\n")
 		fmt.Fprintf(os.Stderr, "      --no-ignores     include repos with a .tortugaignore file\n")
@@ -78,8 +82,18 @@ func parseConfig(args []string) (Config, error) {
 		return cfg, flag.ErrHelp // reuse ErrHelp as "exit cleanly" signal
 	}
 
-	if cfg.AutoYes && cfg.AutoNo {
-		return cfg, fmt.Errorf("-y/--yes and -n/--no are mutually exclusive")
+	autoCount := 0
+	if cfg.AutoYes {
+		autoCount++
+	}
+	if cfg.AutoIncoming {
+		autoCount++
+	}
+	if cfg.AutoNo {
+		autoCount++
+	}
+	if autoCount > 1 {
+		return cfg, fmt.Errorf("-y/--yes, -i/--incoming-only, and -n/--no are mutually exclusive")
 	}
 
 	if cfg.Jobs < 1 {
@@ -165,6 +179,10 @@ func resolveAction(cfg Config, repos []model.Repo) ui.Action {
 
 	if cfg.AutoYes {
 		return ui.ActionSync
+	}
+
+	if cfg.AutoIncoming {
+		return ui.ActionIncoming
 	}
 
 	if !term.IsTerminal(int(os.Stdout.Fd())) {
