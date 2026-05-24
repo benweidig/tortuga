@@ -97,7 +97,8 @@ func (r *Renderer) RenderErrors(repos []model.Repo) {
 		}
 	}
 
-	fmt.Fprintln(r.writer, "\nErrors:")
+	fmt.Println()
+	fmt.Println(r.output.String("ERRORS:").Foreground(termenv.ANSIRed).Bold().String())
 	for _, repo := range failed {
 		name := fmt.Sprintf("%-*s", nameWidth, repo.Name)
 		fmt.Fprintf(r.writer, "  %s  %s\n", name, repo.Err.Message)
