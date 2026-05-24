@@ -4,7 +4,7 @@ pkgver=PKG_VERSION
 pkgrel=1
 pkgdesc="DESCRIPTION"
 arch=('x86_64' 'aarch64')
-url="https://REPO_URL"
+url="https://REPO"
 license=('MIT')
 provides=('tt')
 

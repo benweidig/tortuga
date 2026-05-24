@@ -57,7 +57,25 @@ go install github.com/benweidig/tortuga@latest
 
 Download from [releases](https://github.com/benweidig/tortuga/releases) or use the provided `.deb` packages for Debian/Ubuntu.
 
-AUR package is work in progress.
+**Arch Linux:**
+
+Not available on AUR (yet).
+
+Install directly from the latest release:
+
+```bash
+# CREATE TEMPORARY DIRECTORY
+tortuga_tmp="$(mktemp -d)" \
+&& pushd "${tortuga_tmp}"
+
+# DOWNLOAD AND INSTALL
+curl -fsSL https://github.com/benweidig/tortuga/releases/latest/download/PKGBUILD -O \
+&& makepkg -si
+
+# GO BACK TO PREVIOUS LOCATION AND CLEAN UP
+popd
+rm -rf -- "${tortuga_tmp}"
+```
 
 ---
 
