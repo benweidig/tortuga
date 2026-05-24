@@ -39,7 +39,7 @@ func TestFindRepos_RootIsRepo(t *testing.T) {
 	root := t.TempDir()
 	initRepo(t, root)
 
-	repos, err := discovery.FindRepos(root)
+	repos, err := discovery.FindRepos(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func TestFindRepos_Strategy1TakesPriority(t *testing.T) {
 	must(t, os.Mkdir(child, 0755))
 	initRepo(t, child)
 
-	repos, err := discovery.FindRepos(root)
+	repos, err := discovery.FindRepos(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func TestFindRepos_ChildRepos(t *testing.T) {
 	initRepo(t, a)
 	initRepo(t, b)
 
-	repos, err := discovery.FindRepos(root)
+	repos, err := discovery.FindRepos(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +101,7 @@ func TestFindRepos_IgnoresNonRepoChildren(t *testing.T) {
 	must(t, os.Mkdir(plainDir, 0755))
 	initRepo(t, repoDir)
 
-	repos, err := discovery.FindRepos(root)
+	repos, err := discovery.FindRepos(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestFindRepos_DotGitAsFile(t *testing.T) {
 	must(t, os.Mkdir(child, 0755))
 	must(t, os.WriteFile(filepath.Join(child, ".git"), []byte("gitdir: ../real/.git"), 0644))
 
-	repos, err := discovery.FindRepos(root)
+	repos, err := discovery.FindRepos(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +138,7 @@ func TestFindRepos_Strategy2TakesPriorityOverAncestor(t *testing.T) {
 	must(t, os.Mkdir(child, 0755))
 	initRepo(t, child)
 
-	repos, err := discovery.FindRepos(root)
+	repos, err := discovery.FindRepos(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +156,7 @@ func TestFindRepos_AncestorRepo(t *testing.T) {
 	root := filepath.Join(ancestor, "subdir")
 	must(t, os.Mkdir(root, 0755))
 
-	repos, err := discovery.FindRepos(root)
+	repos, err := discovery.FindRepos(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +172,7 @@ func TestFindRepos_AncestorMultipleLevels(t *testing.T) {
 	deep := filepath.Join(ancestor, "a", "b", "c")
 	must(t, os.MkdirAll(deep, 0755))
 
-	repos, err := discovery.FindRepos(deep)
+	repos, err := discovery.FindRepos(deep, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +186,7 @@ func TestFindRepos_AncestorMultipleLevels(t *testing.T) {
 func TestFindRepos_NoRepos(t *testing.T) {
 	root := t.TempDir()
 
-	_, err := discovery.FindRepos(root)
+	_, err := discovery.FindRepos(root, false)
 	if err != discovery.ErrNoRepos {
 		t.Errorf("expected ErrNoRepos, got %v", err)
 	}
@@ -197,7 +197,7 @@ func TestFindRepos_BranchName(t *testing.T) {
 	initRepo(t, root)
 	must(t, run(root, "git", "checkout", "-b", "my-feature"))
 
-	repos, err := discovery.FindRepos(root)
+	repos, err := discovery.FindRepos(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,11 +217,84 @@ func TestFindRepos_DetachedHEAD(t *testing.T) {
 	sha := string(out[:len(out)-1]) // trim newline
 	must(t, run(root, "git", "checkout", sha))
 
-	repos, err := discovery.FindRepos(root)
+	repos, err := discovery.FindRepos(root, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if repos[0].Branch != "(detached)" {
 		t.Errorf("expected (detached), got %q", repos[0].Branch)
+	}
+}
+
+// --- .tortugaignore ---
+
+func TestFindRepos_IgnoreFile_Strategy1(t *testing.T) {
+	root := t.TempDir()
+	initRepo(t, root)
+	must(t, os.WriteFile(filepath.Join(root, ".tortugaignore"), nil, 0644))
+
+	_, err := discovery.FindRepos(root, false)
+	if err != discovery.ErrNoRepos {
+		t.Errorf("expected ErrNoRepos for ignored root, got %v", err)
+	}
+}
+
+func TestFindRepos_IgnoreFile_Strategy2_Some(t *testing.T) {
+	root := t.TempDir()
+	a := filepath.Join(root, "aaa")
+	b := filepath.Join(root, "bbb")
+	must(t, os.Mkdir(a, 0755))
+	must(t, os.Mkdir(b, 0755))
+	initRepo(t, a)
+	initRepo(t, b)
+	must(t, os.WriteFile(filepath.Join(b, ".tortugaignore"), nil, 0644))
+
+	repos, err := discovery.FindRepos(root, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(repos) != 1 || repos[0].Name != "aaa" {
+		t.Errorf("expected only aaa, got %v", repos)
+	}
+}
+
+func TestFindRepos_IgnoreFile_Strategy2_All(t *testing.T) {
+	root := t.TempDir()
+	a := filepath.Join(root, "aaa")
+	must(t, os.Mkdir(a, 0755))
+	initRepo(t, a)
+	must(t, os.WriteFile(filepath.Join(a, ".tortugaignore"), nil, 0644))
+
+	_, err := discovery.FindRepos(root, false)
+	if err != discovery.ErrNoRepos {
+		t.Errorf("expected ErrNoRepos when all children ignored, got %v", err)
+	}
+}
+
+func TestFindRepos_IgnoreFile_Strategy3(t *testing.T) {
+	ancestor := t.TempDir()
+	initRepo(t, ancestor)
+	must(t, os.WriteFile(filepath.Join(ancestor, ".tortugaignore"), nil, 0644))
+
+	root := filepath.Join(ancestor, "subdir")
+	must(t, os.MkdirAll(root, 0755))
+
+	_, err := discovery.FindRepos(root, false)
+	if err != discovery.ErrNoRepos {
+		t.Errorf("expected ErrNoRepos for ignored ancestor, got %v", err)
+	}
+}
+
+func TestFindRepos_NoIgnores_OverridesIgnoreFile(t *testing.T) {
+	root := t.TempDir()
+	initRepo(t, root)
+	must(t, os.WriteFile(filepath.Join(root, ".tortugaignore"), nil, 0644))
+
+	repos, err := discovery.FindRepos(root, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(repos) != 1 || repos[0].Path != root {
+		t.Errorf("expected root repo with noIgnores=true, got %v", repos)
 	}
 }

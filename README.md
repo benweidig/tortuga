@@ -101,14 +101,26 @@ tt --yes
 
 ### Command Line Options
 
-| Flag           | Short | Description                                 |
-| -------------- | ----- | ------------------------------------------- |
-| `--monochrome` | `-m`  | Disable ANSI colors                         |
-| `--yes`        | `-y`  | Automatically accept sync prompts           |
-| `--no`         | `-n`  | Fetch only (default if stdout is not a TTY) |
-| `--jobs`       | `-j`  | Max. concurrent Git operations (default: 5) |
-| `--help`       | `-h`  | Display help                                |
-| `--version`    |       | Show version                                |
+| Flag              | Short | Description                                     |
+| ----------------- | ----- | ----------------------------------------------- |
+| `--monochrome`    | `-m`  | Disable ANSI colors                             |
+| `--yes`           | `-y`  | Automatically accept sync prompts               |
+| `--no`            | `-n`  | Fetch only (default if stdout is not a TTY)     |
+| `--jobs`          | `-j`  | Max. concurrent Git operations (default: 5)     |
+| `--no-ignores`    |       | Include repos that have a `.tortugaignore` file |
+| `--help`          | `-h`  | Display help                                    |
+| `--version`       |       | Show version                                    |
+
+### Ignoring Repositories
+
+Place a `.tortugaignore` file in any repository to exclude it from discovery:
+
+```bash
+touch /path/to/repo/.tortugaignore
+```
+
+This works for all three discovery strategies (root repo, child repos, ancestor repo).
+Use `--no-ignores` to override all ignore files in a single run.
 
 ### Git Credentials
 

@@ -24,6 +24,7 @@ type Config struct {
 	AutoYes    bool
 	AutoNo     bool
 	Jobs       int
+	NoIgnores  bool
 }
 
 func parseConfig(args []string) (Config, error) {
@@ -46,6 +47,7 @@ func parseConfig(args []string) (Config, error) {
 	fs.BoolVar(&cfg.AutoNo, "no", false, "fetch only, no changes")
 	fs.IntVar(&cfg.Jobs, "j", 5, "")
 	fs.IntVar(&cfg.Jobs, "jobs", 5, "max concurrent git operations")
+	fs.BoolVar(&cfg.NoIgnores, "no-ignores", false, "include repos that have a .tortugaignore file")
 
 	var showVersion bool
 	fs.BoolVar(&showVersion, "version", false, "print version and exit")
@@ -54,12 +56,13 @@ func parseConfig(args []string) (Config, error) {
 		fmt.Fprintf(os.Stderr, "tt %s\n\n", version.BuildVersion())
 		fmt.Fprintf(os.Stderr, "Usage: tt [flags] [directory]\n\n")
 		fmt.Fprintf(os.Stderr, "Flags:\n")
-		fmt.Fprintf(os.Stderr, "  -m, --monochrome  disable colors\n")
-		fmt.Fprintf(os.Stderr, "  -y, --yes         skip prompt and sync\n")
-		fmt.Fprintf(os.Stderr, "  -n, --no          fetch only, no changes\n")
-		fmt.Fprintf(os.Stderr, "  -j, --jobs N      max concurrent git operations (default 5)\n")
-		fmt.Fprintf(os.Stderr, "  -h, --help        show this help\n")
-		fmt.Fprintf(os.Stderr, "      --version     print version and exit\n")
+		fmt.Fprintf(os.Stderr, "  -m, --monochrome     disable colors\n")
+		fmt.Fprintf(os.Stderr, "  -y, --yes            skip prompt and sync\n")
+		fmt.Fprintf(os.Stderr, "  -n, --no             fetch only, no changes\n")
+		fmt.Fprintf(os.Stderr, "  -j, --jobs N         max concurrent git operations (default 5)\n")
+		fmt.Fprintf(os.Stderr, "      --no-ignores     include repos with a .tortugaignore file\n")
+		fmt.Fprintf(os.Stderr, "  -h, --help           show this help\n")
+		fmt.Fprintf(os.Stderr, "      --version        print version and exit\n")
 	}
 
 	if err := fs.Parse(args); err != nil {
@@ -114,7 +117,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	repos, err := discovery.FindRepos(cfg.Dir)
+	repos, err := discovery.FindRepos(cfg.Dir, cfg.NoIgnores)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "tt: %s\n", err)
 		os.Exit(2)

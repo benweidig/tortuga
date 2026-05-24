@@ -18,7 +18,7 @@ func TestParseConfig_Defaults(t *testing.T) {
 	if cfg.Jobs != 5 {
 		t.Errorf("expected Jobs=5, got %d", cfg.Jobs)
 	}
-	if cfg.Monochrome || cfg.AutoYes || cfg.AutoNo {
+	if cfg.Monochrome || cfg.AutoYes || cfg.AutoNo || cfg.NoIgnores {
 		t.Error("expected all bool flags false by default")
 	}
 }
@@ -90,5 +90,15 @@ func TestParseConfig_Help(t *testing.T) {
 	_, err := parseConfig([]string{"-help"})
 	if err != flag.ErrHelp {
 		t.Errorf("expected flag.ErrHelp for -help, got %v", err)
+	}
+}
+
+func TestParseConfig_NoIgnores(t *testing.T) {
+	cfg, err := parseConfig([]string{"--no-ignores"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.NoIgnores {
+		t.Error("expected NoIgnores=true")
 	}
 }

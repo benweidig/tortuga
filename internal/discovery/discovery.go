@@ -17,20 +17,54 @@ var ErrNoRepos = errors.New("no git repositories found")
 //  1. Root is itself a git repo
 //  2. Direct children of root are git repos
 //  3. Walk upward from root to find a parent repo
-func FindRepos(root string) ([]model.Repo, error) {
+//
+// Unless noIgnores is true, any repository containing a ".tortugaignore" file
+// is excluded. For strategies 1 and 3 this means ErrNoRepos is returned. For
+// strategy 2 only the ignored children are dropped; if all children are
+// ignored ErrNoRepos is returned rather than falling through to strategy 3.
+func FindRepos(root string, noIgnores bool) ([]model.Repo, error) {
 	if isGitRepo(root) {
+		if !noIgnores && isIgnored(root) {
+			return nil, ErrNoRepos
+		}
 		return reposFrom([]string{root}), nil
 	}
 
 	if children, err := gitChildren(root); err == nil && len(children) > 0 {
-		return reposFrom(children), nil
+		if !noIgnores {
+			children = filterIgnored(children)
+		}
+		if len(children) > 0 {
+			return reposFrom(children), nil
+		}
+		return nil, ErrNoRepos
 	}
 
 	if ancestor, err := findAncestorRepo(root); err == nil {
+		if !noIgnores && isIgnored(ancestor) {
+			return nil, ErrNoRepos
+		}
 		return reposFrom([]string{ancestor}), nil
 	}
 
 	return nil, ErrNoRepos
+}
+
+// isIgnored reports whether path contains a ".tortugaignore" file.
+func isIgnored(path string) bool {
+	_, err := os.Stat(filepath.Join(path, ".tortugaignore"))
+	return err == nil
+}
+
+// filterIgnored returns a new slice with any paths containing ".tortugaignore" removed.
+func filterIgnored(paths []string) []string {
+	result := make([]string, 0, len(paths))
+	for _, p := range paths {
+		if !isIgnored(p) {
+			result = append(result, p)
+		}
+	}
+	return result
 }
 
 // isGitRepo reports whether path contains a .git entry (file or directory).
