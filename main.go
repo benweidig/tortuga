@@ -189,6 +189,10 @@ func resolveAction(cfg Config, repos []model.Repo) ui.Action {
 		return ui.ActionNone
 	}
 
+	if len(ui.FilterRepos(repos, ui.ActionSync)) == 0 {
+		return ui.ActionNone
+	}
+
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
 		return ui.ActionNone
